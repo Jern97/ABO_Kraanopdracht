@@ -4,6 +4,7 @@ package be.kul.gantry.domain;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import javafx.util.Pair;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -30,10 +31,10 @@ public class Problem {
     private final List<Slot> slots;
     private final int safetyDistance;
     private final int pickupPlaceDuration;
-    private List<List<Slot>> bodemSlots;
+    private HashMap<Coordinaat,Slot> bodemSlots;
     private HashMap<Integer, Slot> itemSlotMap;
 
-    public Problem(int minX, int maxX, int minY, int maxY, int maxLevels, List<Item> items, List<Job> inputJobSequence, List<Job> outputJobSequence, List<Gantry> gantries, List<Slot> slots, int safetyDistance, int pickupPlaceDuration, List<List<Slot>> bodemSlots, HashMap<Integer, Slot> itemSlotMap) {
+    public Problem(int minX, int maxX, int minY, int maxY, int maxLevels, List<Item> items, List<Job> inputJobSequence, List<Job> outputJobSequence, List<Gantry> gantries, List<Slot> slots, int safetyDistance, int pickupPlaceDuration, HashMap<Coordinaat,Slot> bodemSlots, HashMap<Integer, Slot> itemSlotMap) {
         this.minX = minX;
         this.maxX = maxX;
         this.minY = minY;
@@ -98,11 +99,11 @@ public class Problem {
         return pickupPlaceDuration;
     }
 
-    public List<List<Slot>> getBodemSlots() {
+    public HashMap<Coordinaat, Slot> getBodemSlots() {
         return bodemSlots;
     }
 
-    public void setBodemSlots(List<List<Slot>> bodemSlots) {
+    public void setBodemSlots(HashMap<Coordinaat, Slot> bodemSlots) {
         this.bodemSlots = bodemSlots;
     }
 
@@ -233,7 +234,7 @@ public class Problem {
             JSONArray slots = (JSONArray) root.get("slots");
 
             //We maken een 2D Array aan voor alle bodem slots (z=0)
-            List<List<Slot>> bodemSlots = new ArrayList<>();
+            HashMap<Coordinaat,Slot> bodemSlots = new HashMap<>();
             //We vullen de array met nieuwe arrays
             HashMap<Integer, Slot> itemSlotMap = new HashMap<>();
 
@@ -262,16 +263,11 @@ public class Problem {
 
                 //Als Z=0 is ligt het slot op de bodem en moeten we het toevoegen een de 2D Array van bodemslots;
                 if(z == 0){
-                    //Indien de Arraylist in de 2de dimensie  nog niet bestaat, dan maken we hem aan;
-                    int xLocatie2D = (int) (cx/10);
-                    if(bodemSlots.get(xLocatie2D) == null){
-                        bodemSlots.set(xLocatie2D, new ArrayList<Slot>());
-                    }
-                    bodemSlots.get(xLocatie2D).set((int) (cy/10), s);
+                    bodemSlots.put(new Coordinaat((int) cx/10, (int) cy/10), s);
                 }
                 else{
                     //Beginnen bij onderste slot, halen uit bodemSlots lijst
-                    Slot child = bodemSlots.get((int) (cx/10)).get((int) (cy/10));
+                    Slot child = bodemSlots.get(new Coordinaat((int) cx/10, (int) cy/10));
                     //Child updaten naar gelang waarde van z, we zoeken de child van nieuwe node S
                     for(int i = 1; i<z; i++){
                         child = child.getParent();
@@ -352,6 +348,9 @@ public class Problem {
 
     }
 
+    public void solve()
+    {
 
+    }
 
 }
