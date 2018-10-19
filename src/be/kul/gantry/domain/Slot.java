@@ -8,6 +8,8 @@ public class Slot {
     private final int id;
     private final int centerX, centerY, xMin, xMax, yMin, yMax,z;
     private Item item;
+    private Slot parent;
+    private Slot child;
     private final SlotType type;
 
     public Slot(int id, int centerX, int centerY, int xMin, int xMax, int yMin, int yMax, int z, SlotType type, Item item) {
@@ -20,6 +22,21 @@ public class Slot {
         this.yMax = yMax;
         this.z = z;
         this.item = item;
+        this.type = type;
+    }
+
+    public Slot(int id, int centerX, int centerY, int xMin, int xMax, int yMin, int yMax, int z, Item item, Slot parent, Slot child, SlotType type) {
+        this.id = id;
+        this.centerX = centerX;
+        this.centerY = centerY;
+        this.xMin = xMin;
+        this.xMax = xMax;
+        this.yMin = yMin;
+        this.yMax = yMax;
+        this.z = z;
+        this.item = item;
+        this.parent = parent;
+        this.child = child;
         this.type = type;
     }
 
@@ -72,6 +89,22 @@ public class Slot {
     public boolean isOutputSlot() { return type == SlotType.OUTPUT; }
 
     public boolean isStorageSlot() { return type == SlotType.STORAGE; }
+
+    public Slot getParent() {
+        return parent;
+    }
+
+    public void setParent(Slot parent) {
+        this.parent = parent;
+    }
+
+    public Slot getChild() {
+        return child;
+    }
+
+    public void setChild(Slot child) {
+        this.child = child;
+    }
 
     @Override
     public String toString() {

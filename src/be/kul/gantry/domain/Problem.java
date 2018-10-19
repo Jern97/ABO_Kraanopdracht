@@ -213,6 +213,15 @@ public class Problem {
             int overallMinY = Integer.MAX_VALUE, overallMaxY = Integer.MIN_VALUE;
 
             JSONArray slots = (JSONArray) root.get("slots");
+
+            //We maken een 2D Array aan voor alle bodem slots (z=0)
+            List<List<Slot>> bodemSlots = new ArrayList<>();
+            //We vullen de array met nieuwe arrays
+            for(int i = 0; i < 100; i++){
+                bodemSlots.set(i, new ArrayList<Slot>());
+            }
+            HashMap<Integer, Slot> itemSlotMap = new HashMap<>();
+
             for(Object o : slots) {
                 JSONObject slot = (JSONObject) o;
 
@@ -235,6 +244,29 @@ public class Problem {
                 Item c = itemId == null ? null : itemList.get(itemId);
 
                 Slot s = new Slot(id,cx,cy,minX,maxX,minY,maxY,z,type,c);
+
+                //Als Z=0 is ligt het slot op de bodem en moeten we het toevoegen een de 2D Array van bodemslots;
+                if(z == 0){
+                    bodemSlots.get((int) (cx/10)).set((int) (cy/10), s);
+                }
+                else{
+                    //Beginnen bij onderste slot, halen uit bodemSlots lijst
+                    Slot child = bodemSlots.get((int) (cx/10)).get((int) (cy/10));
+                    //Child updaten naar gelang waarde van z, we zoeken de child van nieuwe node S
+                    for(int i = 1; i<z; i++){
+                        child = child.getParent();
+                    }
+                    //Een keer we de child gevonden hebben updaten we de relaties;
+                    s.setChild(child);
+                    child.setParent(s);
+                }
+
+                //toevoegen van link item -> slot aan hashmap indien het slot gevuld is;
+                if(c != null){
+                    itemSlotMap.put(c.getId(), s);
+                }
+
+
                 slotList.add(s);
             }
 
