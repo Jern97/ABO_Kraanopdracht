@@ -30,22 +30,24 @@ public class Problem {
     private final List<Slot> slots;
     private final int safetyDistance;
     private final int pickupPlaceDuration;
+    private List<List<Slot>> bodemSlots;
+    private HashMap<Integer, Slot> itemSlotMap;
 
-    public Problem(int minX, int maxX, int minY, int maxY, int maxLevels,
-                   List<Item> items, List<Gantry> gantries, List<Slot> slots,
-                   List<Job> inputJobSequence, List<Job> outputJobSequence, int gantrySafetyDist, int pickupPlaceDuration) {
+    public Problem(int minX, int maxX, int minY, int maxY, int maxLevels, List<Item> items, List<Job> inputJobSequence, List<Job> outputJobSequence, List<Gantry> gantries, List<Slot> slots, int safetyDistance, int pickupPlaceDuration, List<List<Slot>> bodemSlots, HashMap<Integer, Slot> itemSlotMap) {
         this.minX = minX;
         this.maxX = maxX;
         this.minY = minY;
         this.maxY = maxY;
         this.maxLevels = maxLevels;
-        this.items = new ArrayList<>(items);
-        this.gantries = new ArrayList<>(gantries);
-        this.slots = new ArrayList<>(slots);
-        this.inputJobSequence = new ArrayList<>(inputJobSequence);
-        this.outputJobSequence = new ArrayList<>(outputJobSequence);
-        this.safetyDistance = gantrySafetyDist;
+        this.items = items;
+        this.inputJobSequence = inputJobSequence;
+        this.outputJobSequence = outputJobSequence;
+        this.gantries = gantries;
+        this.slots = slots;
+        this.safetyDistance = safetyDistance;
         this.pickupPlaceDuration = pickupPlaceDuration;
+        this.bodemSlots = bodemSlots;
+        this.itemSlotMap = itemSlotMap;
     }
 
     public int getMinX() {
@@ -94,6 +96,22 @@ public class Problem {
 
     public int getPickupPlaceDuration() {
         return pickupPlaceDuration;
+    }
+
+    public List<List<Slot>> getBodemSlots() {
+        return bodemSlots;
+    }
+
+    public void setBodemSlots(List<List<Slot>> bodemSlots) {
+        this.bodemSlots = bodemSlots;
+    }
+
+    public HashMap<Integer, Slot> getItemSlotMap() {
+        return itemSlotMap;
+    }
+
+    public void setItemSlotMap(HashMap<Integer, Slot> itemSlotMap) {
+        this.itemSlotMap = itemSlotMap;
     }
 
     public void writeJsonFile(File file) throws IOException {
@@ -217,9 +235,6 @@ public class Problem {
             //We maken een 2D Array aan voor alle bodem slots (z=0)
             List<List<Slot>> bodemSlots = new ArrayList<>();
             //We vullen de array met nieuwe arrays
-            for(int i = 0; i < 100; i++){
-                bodemSlots.set(i, new ArrayList<Slot>());
-            }
             HashMap<Integer, Slot> itemSlotMap = new HashMap<>();
 
             for(Object o : slots) {
@@ -247,7 +262,12 @@ public class Problem {
 
                 //Als Z=0 is ligt het slot op de bodem en moeten we het toevoegen een de 2D Array van bodemslots;
                 if(z == 0){
-                    bodemSlots.get((int) (cx/10)).set((int) (cy/10), s);
+                    //Indien de Arraylist in de 2de dimensie  nog niet bestaat, dan maken we hem aan;
+                    int xLocatie2D = (int) (cx/10);
+                    if(bodemSlots.get(xLocatie2D) == null){
+                        bodemSlots.set(xLocatie2D, new ArrayList<Slot>());
+                    }
+                    bodemSlots.get(xLocatie2D).set((int) (cy/10), s);
                 }
                 else{
                     //Beginnen bij onderste slot, halen uit bodemSlots lijst
@@ -319,12 +339,14 @@ public class Problem {
                     overallMaxY,
                     maxLevels,
                     itemList,
-                    gantryList,
-                    slotList,
                     inputJobList,
                     outputJobList,
+                    gantryList,
+                    slotList,
                     safetyDist,
-                    pickupPlaceDuration);
+                    pickupPlaceDuration,
+                    bodemSlots,
+                    itemSlotMap);
 
         }
 
