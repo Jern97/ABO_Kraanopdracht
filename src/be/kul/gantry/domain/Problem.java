@@ -363,7 +363,10 @@ public class Problem {
         //Nieuwe locatie zoeken voor item (in een zo dicht mogelijke rij)
         Slot newLocation = null;
         int magnitude = 1;
-        int direction = 1;
+        //We kiezen willekeurig een richting om in te zoeken;
+        double random = Math.random();
+        int direction = Math.random() < 0.5 ? -1 : 1;
+
         while(newLocation == null){
             int offset = magnitude * direction;
             //Als we in een bepaalde richting aan het einde van de opslagruimte komen:
