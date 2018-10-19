@@ -4,7 +4,6 @@ package be.kul.gantry.domain;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import javafx.util.Pair;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -31,10 +30,10 @@ public class Problem {
     private final List<Slot> slots;
     private final int safetyDistance;
     private final int pickupPlaceDuration;
-    private HashMap<Coordinaat,Slot> bodemSlots;
+    private HashMap<Integer, HashMap<Integer, Slot>> bottomSlots;
     private HashMap<Integer, Slot> itemSlotMap;
 
-    public Problem(int minX, int maxX, int minY, int maxY, int maxLevels, List<Item> items, List<Job> inputJobSequence, List<Job> outputJobSequence, List<Gantry> gantries, List<Slot> slots, int safetyDistance, int pickupPlaceDuration, HashMap<Coordinaat,Slot> bodemSlots, HashMap<Integer, Slot> itemSlotMap) {
+    public Problem(int minX, int maxX, int minY, int maxY, int maxLevels, List<Item> items, List<Job> inputJobSequence, List<Job> outputJobSequence, List<Gantry> gantries, List<Slot> slots, int safetyDistance, int pickupPlaceDuration, HashMap<Integer, HashMap<Integer, Slot>> bottomSlots, HashMap<Integer, Slot> itemSlotMap) {
         this.minX = minX;
         this.maxX = maxX;
         this.minY = minY;
@@ -47,7 +46,7 @@ public class Problem {
         this.slots = slots;
         this.safetyDistance = safetyDistance;
         this.pickupPlaceDuration = pickupPlaceDuration;
-        this.bodemSlots = bodemSlots;
+        this.bottomSlots = bottomSlots;
         this.itemSlotMap = itemSlotMap;
     }
 
@@ -97,14 +96,6 @@ public class Problem {
 
     public int getPickupPlaceDuration() {
         return pickupPlaceDuration;
-    }
-
-    public HashMap<Coordinaat, Slot> getBodemSlots() {
-        return bodemSlots;
-    }
-
-    public void setBodemSlots(HashMap<Coordinaat, Slot> bodemSlots) {
-        this.bodemSlots = bodemSlots;
     }
 
     public HashMap<Integer, Slot> getItemSlotMap() {
@@ -234,7 +225,7 @@ public class Problem {
             JSONArray slots = (JSONArray) root.get("slots");
 
             //We maken een 2D Array aan voor alle bodem slots (z=0)
-            HashMap<Coordinaat,Slot> bodemSlots = new HashMap<>();
+            HashMap<Integer, HashMap<Integer, Slot>> bodemSlots = new HashMap<>();
             //We vullen de array met nieuwe arrays
             HashMap<Integer, Slot> itemSlotMap = new HashMap<>();
 
@@ -263,11 +254,15 @@ public class Problem {
 
                 //Als Z=0 is ligt het slot op de bodem en moeten we het toevoegen een de 2D Array van bodemslots;
                 if(z == 0){
-                    bodemSlots.put(new Coordinaat((int) cx/10, (int) cy/10), s);
+                    //Hashmap in hashmap steken als key nog leeg is
+                    if(bodemSlots.get((int) cy/10) == null){
+                        bodemSlots.put((int) cy/10, new HashMap<>());
+                    }
+                    bodemSlots.get((int) cy/10).put((int) cx/10, s);
                 }
                 else{
-                    //Beginnen bij onderste slot, halen uit bodemSlots lijst
-                    Slot child = bodemSlots.get(new Coordinaat((int) cx/10, (int) cy/10));
+                    //Beginnen bij onderste slot, halen uit bottomSlots lijst
+                    Slot child = bodemSlots.get((int) cy/10).get((int) cx/10);
                     //Child updaten naar gelang waarde van z, we zoeken de child van nieuwe node S
                     for(int i = 1; i<z; i++){
                         child = child.getParent();
@@ -348,8 +343,90 @@ public class Problem {
 
     }
 
-    public void solve()
+    public List<Move> solve()
     {
+        //Eerst alle output jobs afwerken
+        List<Move> moves = new ArrayList<>();
+        for(Job j: outputJobSequence){
+            Slot s = itemSlotMap.get(j.getItem().getId());
+            if(s.getParent() != null){
+                clearTop(s.getParent(), gantries.get(0));
+            }
+        }
+    }
+    public List<Move> clearTop(Slot s, Gantry g){
+        List<Move> moves = new ArrayList<>();
+        //Recursief naar boven gaan in de stapel, deze moeten eerst verplaatst worden
+        if(s.getParent().getItem() != null){
+            moves.addAll(clearTop(s.getParent(), g));
+        }
+        //Nieuwe locatie zoeken voor item (in een zo dicht mogelijke rij)
+        Slot newLocation = null;
+        int magnitude = 1;
+        int direction = 1;
+        while(newLocation == null){
+            int offset = magnitude * direction;
+            //Als we in een bepaalde richting aan het einde van de opslagruimte komen:
+            if(bottomSlots.get(((int) s.getCenterY()/10) + offset) == null){
+                magnitude = 0;
+                direction *= -1;
+                continue;
+            }
+            //Alle sloten in de onderste rij vastnemen en beginnen zoeken voor een vrije plaats.
+            Set<Slot> bottomRow = new HashSet<>(bottomSlots.get(((int) s.getCenterY()/10) + offset).values());
+            newLocation = searchViableSlot(bottomRow);
+            magnitude += 1;
+        }
+
+        //Item effectief verplaatsen
+        moves.addAll(createMoves(g, s, newLocation));
+        //Slots en hashmap updaten
+        newLocation.setItem(s.getItem());
+        s.setItem(null);
+        itemSlotMap.put(newLocation.getItem().getId(), newLocation);
+
+        return moves;
+    }
+    public Slot searchViableSlot(Set<Slot> toCheck){
+        //hoogste niveau bereikt;
+        if(toCheck.isEmpty()){
+            return null;
+        }
+
+
+        //Checken voor een vrij plaats op dit niveau
+        for(Slot t: toCheck){
+            if (t.getItem() == null){
+                return t;
+            }
+        }
+
+        //Alle parents toevoegen aan lijst en niveau hoger gaan zoeken
+        Set<Slot> nextLevel = new HashSet<>();
+        for(Slot t: toCheck){
+            nextLevel.add(t);
+        };
+        return searchViableSlot(nextLevel);
+
+    }
+
+    public List<Move> createMoves(Gantry g, Slot toMoveItem ,Slot destination){
+        List<Move> moves = new ArrayList<>();
+        //Een basis sequentie van moves bestaat uit 4 verschillende moves:
+
+        //De kraan bewegen naar het item;
+        moves.add(new Move(g, toMoveItem.getCenterX(), toMoveItem.getCenterY(), null, 0));
+        //Item oppikken in de kraan;
+        moves.add(new Move(g, g.getX(), g.getY(), toMoveItem.getId(), pickupPlaceDuration));
+        //Item vervoeren naar destination;
+        moves.add(new Move(g, destination.getCenterX(), destination.getCenterY(), toMoveItem.getId(), 0));
+        //Item droppen op destination;
+        moves.add(new Move(g, g.getX(), g.getY(), null, pickupPlaceDuration));
+
+        return moves;
+    }
+
+    public List<Move> placeItem(Slot s, Gantry g){
 
     }
 
