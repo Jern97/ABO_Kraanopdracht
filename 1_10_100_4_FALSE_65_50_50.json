@@ -54583,8 +54583,8 @@
   "gantries": [
     {
       "id": 0,
-      "xMin": -10,
-      "xMax": 1010,
+      "xMin": -15,
+      "xMax": 1015,
       "startX": 0,
       "startY": 0,
       "xSpeed": 5.0,

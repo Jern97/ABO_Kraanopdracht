@@ -22,4 +22,8 @@ public class Move {
         g.setX(x);
         g.setY(y);
     }
+
+    public String toString(){
+        return gID+";"+time+";"+x+";"+y+";"+itemInCraneID;
+    }
 }

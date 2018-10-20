@@ -30,8 +30,11 @@ public class Problem {
     private final List<Slot> slots;
     private final int safetyDistance;
     private final int pickupPlaceDuration;
+    private Slot inputSlot;
+    private Slot outputSlot;
     private HashMap<Integer, HashMap<Integer, Slot>> bottomSlots;
     private HashMap<Integer, Slot> itemSlotMap;
+    private List<Integer> heightList;
 
     public Problem(int minX, int maxX, int minY, int maxY, int maxLevels, List<Item> items, List<Job> inputJobSequence, List<Job> outputJobSequence, List<Gantry> gantries, List<Slot> slots, int safetyDistance, int pickupPlaceDuration, HashMap<Integer, HashMap<Integer, Slot>> bottomSlots, HashMap<Integer, Slot> itemSlotMap) {
         this.minX = minX;
@@ -48,6 +51,21 @@ public class Problem {
         this.pickupPlaceDuration = pickupPlaceDuration;
         this.bottomSlots = bottomSlots;
         this.itemSlotMap = itemSlotMap;
+
+        /*for(Slot s: slots){
+            if(s.getType().name().equals("OUTPUT")){
+                outputSlot = s;
+            }
+            if(s.getType().name().equals("INPUT")){
+                inputSlot = s;
+            }
+
+        }*/
+        //We maken een lijst aan met initiele max heights van alle rijen (nodig om te bepalen waar een item geplaatst wordt)
+        heightList = new ArrayList<>();
+        for(HashMap<Integer, Slot> row : bottomSlots.values()){
+            heightList.add(findFullLevel(new HashSet<>(row.values())));
+        }
     }
 
     public int getMinX() {
@@ -258,7 +276,11 @@ public class Problem {
                     if(bodemSlots.get((int) cy/10) == null){
                         bodemSlots.put((int) cy/10, new HashMap<>());
                     }
-                    bodemSlots.get((int) cy/10).put((int) cx/10, s);
+                    //Enkel toevoegen als het geen input of output slot is;
+                    if(!s.getType().name().equals("INPUT") && !s.getType().name().equals("OUTPUT")){
+                        bodemSlots.get((int) cy/10).put((int) cx/10, s);
+
+                    }
                 }
                 else{
                     //Beginnen bij onderste slot, halen uit bottomSlots lijst
@@ -345,32 +367,87 @@ public class Problem {
 
     public List<Move> solve()
     {
-        //Eerst alle output jobs afwerken
         List<Move> moves = new ArrayList<>();
-        for(Job j: outputJobSequence){
-            Slot s = itemSlotMap.get(j.getItem().getId());
-            if(s.getParent() != null){
-                clearTop(s.getParent(), gantries.get(0));
+        LinkedList<Job> inputJobSequenceCopy = new LinkedList<>(inputJobSequence);
+
+        //We beginnen met het uitvoeren van de outputjobs
+        for(Job j_out: outputJobSequence){
+            Slot s = itemSlotMap.get(j_out.getItem().getId());
+
+            //Als we het item nog niet kunnen vinden wordt eerst een deel van de inputsequence afgewerkt.
+            while(s == null){
+                Job j_in = inputJobSequenceCopy.getFirst();
+                //We gaan opzoek naar de rij met de laagste "vulniveau" (volledig gevuld niveau)
+                int lowestHeight = -1;
+                for(int j : heightList){
+                    if(j > lowestHeight){
+                        lowestHeight = j;
+                    }
+                }
+                //Eerste rij zoeken die de laagste vulniveau heeft, deze is het dichtst bij de kraan
+                int lowestRow = heightList.indexOf(lowestHeight);
+
+                //In deze rij wordt een vrije plaats gezocht voor het item
+                Slot destination = searchViableSlot(new HashSet<>(bottomSlots.get(lowestRow).values()));
+
+                //Het item effectief verplaatsen door de moves te berekenen en de data aan te passen
+                j_in.getPickup().getSlot().setItem(j_in.getItem());
+                moves.addAll(createMoves(gantries.get(0),j_in.getPickup().getSlot(), destination));
+                updateData(j_in.getPickup().getSlot(), destination, 1);
+
+                //De job uit de lijst verwijderen
+                inputJobSequenceCopy.removeFirst();
+
+                //Opnieuw zoeken voor het Slot van de outputjob
+                s = itemSlotMap.get(j_out.getItem().getId());
             }
+
+            //Als het item dat verwijderd moet worden parents heeft met items moeten deze eerst verplaatst worden;
+            if(s.getParent() != null && s.getParent().getItem() != null){
+                moves.addAll(clearTop(s.getParent(), gantries.get(0)));
+            }
+
+            //Het item effectief verplaatsen door de moves te berekenen en de data aan te passen
+            moves.addAll(createMoves(gantries.get(0), s, j_out.getPlace().getSlot()));
+            updateData(s, j_out.getPlace().getSlot(), -1);
         }
+
+        //Als alle outputsjobs klaar zijn werken we de overige input jobs af
+        for (Job j_in: inputJobSequenceCopy){
+            int lowestHeight = -1;
+            for(int j : heightList){
+                if(j > lowestHeight){
+                    lowestHeight = j;
+                }
+            }
+            int lowestRow = heightList.indexOf(lowestHeight);
+            Slot destination = searchViableSlot(new HashSet<>(bottomSlots.get(lowestRow).values()));
+
+            //Het item effectief verplaatsen door de moves te berekenen en de data aan te passen
+            j_in.getPickup().getSlot().setItem(j_in.getItem());
+            moves.addAll(createMoves(gantries.get(0),j_in.getPickup().getSlot(), destination));
+            updateData(j_in.getPickup().getSlot(), destination, 1);
+        }
+        return moves;
     }
     public List<Move> clearTop(Slot s, Gantry g){
         List<Move> moves = new ArrayList<>();
+
         //Recursief naar boven gaan in de stapel, deze moeten eerst verplaatst worden
-        if(s.getParent().getItem() != null){
+        if(s.getParent() != null && s.getParent().getItem() != null){
             moves.addAll(clearTop(s.getParent(), g));
         }
         //Nieuwe locatie zoeken voor item (in een zo dicht mogelijke rij)
         Slot newLocation = null;
         int magnitude = 1;
-        //We kiezen willekeurig een richting om in te zoeken;
-        double random = Math.random();
+        //We kiezen willekeurig een richting om in te zoeken (vooruit of achteruit);
         int direction = Math.random() < 0.5 ? -1 : 1;
 
         while(newLocation == null){
             int offset = magnitude * direction;
             //Als we in een bepaalde richting aan het einde van de opslagruimte komen:
             if(bottomSlots.get(((int) s.getCenterY()/10) + offset) == null){
+                //Grootte resetten en richting omdraaien
                 magnitude = 0;
                 direction *= -1;
                 continue;
@@ -378,15 +455,14 @@ public class Problem {
             //Alle sloten in de onderste rij vastnemen en beginnen zoeken voor een vrije plaats.
             Set<Slot> bottomRow = new HashSet<>(bottomSlots.get(((int) s.getCenterY()/10) + offset).values());
             newLocation = searchViableSlot(bottomRow);
+
             magnitude += 1;
         }
 
         //Item effectief verplaatsen
         moves.addAll(createMoves(g, s, newLocation));
         //Slots en hashmap updaten
-        newLocation.setItem(s.getItem());
-        s.setItem(null);
-        itemSlotMap.put(newLocation.getItem().getId(), newLocation);
+        updateData(s, newLocation, 0);
 
         return moves;
     }
@@ -398,17 +474,17 @@ public class Problem {
 
 
         //Checken voor een vrij plaats op dit niveau
-        for(Slot t: toCheck){
-            if (t.getItem() == null){
-                return t;
+        for(Slot s: toCheck){
+            if (s.getItem() == null){
+                return s;
             }
         }
 
         //Alle parents toevoegen aan lijst en niveau hoger gaan zoeken
         Set<Slot> nextLevel = new HashSet<>();
-        for(Slot t: toCheck){
-            nextLevel.add(t);
-        };
+        for(Slot s: toCheck){
+            if(s.getParent() != null) nextLevel.add(s.getParent());
+        }
         return searchViableSlot(nextLevel);
 
     }
@@ -417,20 +493,63 @@ public class Problem {
         List<Move> moves = new ArrayList<>();
         //Een basis sequentie van moves bestaat uit 4 verschillende moves:
 
-        //De kraan bewegen naar het item;
+        //De kraan bewegen naar het te verplaatsen item;
         moves.add(new Move(g, toMoveItem.getCenterX(), toMoveItem.getCenterY(), null, 0));
         //Item oppikken in de kraan;
-        moves.add(new Move(g, g.getX(), g.getY(), toMoveItem.getId(), pickupPlaceDuration));
+        moves.add(new Move(g, g.getX(), g.getY(), toMoveItem.getItem().getId(), pickupPlaceDuration));
         //Item vervoeren naar destination;
-        moves.add(new Move(g, destination.getCenterX(), destination.getCenterY(), toMoveItem.getId(), 0));
+        moves.add(new Move(g, destination.getCenterX(), destination.getCenterY(), toMoveItem.getItem().getId(), 0));
         //Item droppen op destination;
         moves.add(new Move(g, g.getX(), g.getY(), null, pickupPlaceDuration));
 
         return moves;
     }
 
-    public List<Move> placeItem(Slot s, Gantry g){
+    public void updateData(Slot from, Slot to, int mode){
+        //Items in slots worden aangepast en de hoogte van de rij(en) worden aangepast;
 
+        //-1 betekent een item naar outputslot brengen
+        if(mode == -1){
+            itemSlotMap.remove(from.getItem().getId());
+            from.setItem(null);
+            heightList.set((int) from.getCenterY()/10, findFullLevel(new HashSet<>(bottomSlots.get((int) from.getCenterY()/10).values())));
+        }
+        //0 betekent een item intern verplaatsen
+        if(mode == 0){
+            to.setItem(from.getItem());
+            from.setItem(null);
+            itemSlotMap.put(to.getItem().getId(), to);
+
+            heightList.set((int) from.getCenterY()/10, findFullLevel(new HashSet<>(bottomSlots.get((int) from.getCenterY()/10).values())));
+            heightList.set((int) to.getCenterY()/10, findFullLevel(new HashSet<>(bottomSlots.get((int) to.getCenterY()/10).values())));
+        }
+        if(mode == 1){
+            to.setItem(from.getItem());
+            from.setItem(null);
+            itemSlotMap.put(to.getItem().getId(), to);
+            heightList.set((int) to.getCenterY()/10, findFullLevel(new HashSet<>(bottomSlots.get((int) to.getCenterY()/10).values())));
+
+        }
     }
 
+    public static int findFullLevel(Set<Slot> toCheck){
+        Set<Slot> nextLevel = new HashSet<>();
+        boolean full = true;
+        //Voor de slots waar items in zitten zullen de parents moeten gecheckt worden;
+        for(Slot s: toCheck){
+            if(s == null || s.getItem() == null || s.getParent() == null){
+                full = false;
+                return 0;
+            }
+            else{
+                nextLevel.add(s.getParent());
+            }
+        }
+        //Hoger verder zoeken als alle slots op dit niveau vol zijn
+        if(full){
+            return 1 + findFullLevel(nextLevel);
+        }
+
+        return 0;
+    }
 }
