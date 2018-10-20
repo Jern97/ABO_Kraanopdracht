@@ -538,18 +538,14 @@ public class Problem {
         //Voor de slots waar items in zitten zullen de parents moeten gecheckt worden;
         for(Slot s: toCheck){
             if(s == null || s.getItem() == null || s.getParent() == null){
-                full = false;
+                //niveau is niet helemaal vol
                 return 0;
             }
             else{
                 nextLevel.add(s.getParent());
             }
         }
-        //Hoger verder zoeken als alle slots op dit niveau vol zijn
-        if(full){
-            return 1 + findFullLevel(nextLevel);
-        }
-
-        return 0;
+        //Geen lege slots op dit niveau, we gaan een niveau omhoog
+        return 1 + findFullLevel(nextLevel);
     }
 }
