@@ -448,7 +448,7 @@ public class Problem {
             //Als we in een bepaalde richting aan het einde van de opslagruimte komen:
             if(bottomSlots.get(((int) s.getCenterY()/10) + offset) == null){
                 //Grootte resetten en richting omdraaien
-                magnitude = 0;
+                magnitude = 1;
                 direction *= -1;
                 continue;
             }
