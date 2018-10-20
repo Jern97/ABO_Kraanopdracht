@@ -367,6 +367,14 @@ public class Problem {
 
     public List<Move> solve()
     {
+        /*
+            Deze methode lost het probleem op door eerst de beginnen met de outputjobs af te werken.
+            Als een item die nodig is voor een outputjob nog niet aanwezig is in de opslagplaats
+            dan zullen eerst x aantal inputjobs worden afgewerkt, totdat het benodigde item zich in
+            de opslagplaats bevindt.
+            Daarna worden de overige inputjobs afgewerkt.
+         */
+
         List<Move> moves = new ArrayList<>();
         LinkedList<Job> inputJobSequenceCopy = new LinkedList<>(inputJobSequence);
 
@@ -431,12 +439,17 @@ public class Problem {
         return moves;
     }
     public List<Move> clearTop(Slot s, Gantry g){
+        /*
+            Deze methode verplaatst alle items boven een bepaald slot (uitgraven) naar een zo dicht mogelijke rij.
+         */
+
         List<Move> moves = new ArrayList<>();
 
         //Recursief naar boven gaan in de stapel, deze moeten eerst verplaatst worden
         if(s.getParent() != null && s.getParent().getItem() != null){
             moves.addAll(clearTop(s.getParent(), g));
         }
+
         //Nieuwe locatie zoeken voor item (in een zo dicht mogelijke rij)
         Slot newLocation = null;
         int magnitude = 1;
@@ -467,6 +480,10 @@ public class Problem {
         return moves;
     }
     public Slot searchViableSlot(Set<Slot> toCheck){
+        /*
+            Deze methode zoekt in een bepaalde rij een zo laag mogelijke vrij slot en returnt dit.
+         */
+
         //hoogste niveau bereikt;
         if(toCheck.isEmpty()){
             return null;
@@ -489,16 +506,21 @@ public class Problem {
 
     }
 
-    public List<Move> createMoves(Gantry g, Slot toMoveItem ,Slot destination){
+    public List<Move> createMoves(Gantry g, Slot pickup ,Slot delivery){
+        /*
+            Deze methode maakt alle moves aan voor een bepaalde kraan met een bepaald pickup en delivery slot.
+         */
+
+
         List<Move> moves = new ArrayList<>();
         //Een basis sequentie van moves bestaat uit 4 verschillende moves:
 
         //De kraan bewegen naar het te verplaatsen item;
-        moves.add(new Move(g, toMoveItem.getCenterX(), toMoveItem.getCenterY(), null, 0));
+        moves.add(new Move(g, pickup.getCenterX(), pickup.getCenterY(), null, 0));
         //Item oppikken in de kraan;
-        moves.add(new Move(g, g.getX(), g.getY(), toMoveItem.getItem().getId(), pickupPlaceDuration));
+        moves.add(new Move(g, g.getX(), g.getY(), pickup.getItem().getId(), pickupPlaceDuration));
         //Item vervoeren naar destination;
-        moves.add(new Move(g, destination.getCenterX(), destination.getCenterY(), toMoveItem.getItem().getId(), 0));
+        moves.add(new Move(g, delivery.getCenterX(), delivery.getCenterY(), pickup.getItem().getId(), 0));
         //Item droppen op destination;
         moves.add(new Move(g, g.getX(), g.getY(), null, pickupPlaceDuration));
 
@@ -533,6 +555,10 @@ public class Problem {
     }
 
     public static int findFullLevel(Set<Slot> toCheck){
+        /*
+            Deze methode berekent het aantal volledig bezette niveaus van een bepaalde rij
+         */
+
         Set<Slot> nextLevel = new HashSet<>();
         boolean full = true;
         //Voor de slots waar items in zitten zullen de parents moeten gecheckt worden;
