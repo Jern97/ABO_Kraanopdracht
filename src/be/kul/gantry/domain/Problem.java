@@ -34,7 +34,7 @@ public class Problem {
     private Slot outputSlot;
     private HashMap<Integer, HashMap<Integer, Slot>> bottomSlots;
     private HashMap<Integer, Slot> itemSlotMap;
-    private List<Integer> heightList;
+    private List<Integer> filledLevelList;
 
     public Problem(int minX, int maxX, int minY, int maxY, int maxLevels, List<Item> items, List<Job> inputJobSequence, List<Job> outputJobSequence, List<Gantry> gantries, List<Slot> slots, int safetyDistance, int pickupPlaceDuration, HashMap<Integer, HashMap<Integer, Slot>> bottomSlots, HashMap<Integer, Slot> itemSlotMap) {
         this.minX = minX;
@@ -52,19 +52,10 @@ public class Problem {
         this.bottomSlots = bottomSlots;
         this.itemSlotMap = itemSlotMap;
 
-        /*for(Slot s: slots){
-            if(s.getType().name().equals("OUTPUT")){
-                outputSlot = s;
-            }
-            if(s.getType().name().equals("INPUT")){
-                inputSlot = s;
-            }
-
-        }*/
         //We maken een lijst aan met initiele max heights van alle rijen (nodig om te bepalen waar een item geplaatst wordt)
-        heightList = new ArrayList<>();
+        filledLevelList = new ArrayList<>();
         for(HashMap<Integer, Slot> row : bottomSlots.values()){
-            heightList.add(findFullLevel(new HashSet<>(row.values())));
+            filledLevelList.add(findFullLevel(new HashSet<>(row.values())));
         }
     }
 
@@ -244,7 +235,6 @@ public class Problem {
 
             //We maken een 2D Array aan voor alle bodem slots (z=0)
             HashMap<Integer, HashMap<Integer, Slot>> bodemSlots = new HashMap<>();
-            //We vullen de array met nieuwe arrays
             HashMap<Integer, Slot> itemSlotMap = new HashMap<>();
 
             for(Object o : slots) {
@@ -365,17 +355,19 @@ public class Problem {
 
     }
 
+    /**
+     * Deze methode lost het probleem op door eerst de beginnen met de outputjobs af te werken.
+     * Als een item die nodig is voor een outputjob nog niet aanwezig is in de opslagplaats
+     * dan zullen eerst x aantal inputjobs worden afgewerkt, totdat het benodigde item zich in
+     * de opslagplaats bevindt.
+     * Daarna worden de overige inputjobs afgewerkt.
+     * @return een list van moves die nodig zijn om alle jobs af te werken
+     */
+
     public List<Move> solve()
     {
-        /*
-            Deze methode lost het probleem op door eerst de beginnen met de outputjobs af te werken.
-            Als een item die nodig is voor een outputjob nog niet aanwezig is in de opslagplaats
-            dan zullen eerst x aantal inputjobs worden afgewerkt, totdat het benodigde item zich in
-            de opslagplaats bevindt.
-            Daarna worden de overige inputjobs afgewerkt.
-         */
-
         List<Move> moves = new ArrayList<>();
+        //Linkedlist maken van inputJobSequence om gemakkelijk jobs er te kunnen uithalen (removeFirst en getFirst())
         LinkedList<Job> inputJobSequenceCopy = new LinkedList<>(inputJobSequence);
 
         //We beginnen met het uitvoeren van de outputjobs
@@ -387,13 +379,13 @@ public class Problem {
                 Job j_in = inputJobSequenceCopy.getFirst();
                 //We gaan opzoek naar de rij met de laagste "vulniveau" (volledig gevuld niveau)
                 int lowestHeight = -1;
-                for(int j : heightList){
+                for(int j : filledLevelList){
                     if(j > lowestHeight){
                         lowestHeight = j;
                     }
                 }
                 //Eerste rij zoeken die de laagste vulniveau heeft, deze is het dichtst bij de kraan
-                int lowestRow = heightList.indexOf(lowestHeight);
+                int lowestRow = filledLevelList.indexOf(lowestHeight);
 
                 //In deze rij wordt een vrije plaats gezocht voor het item
                 Slot destination = searchViableSlot(new HashSet<>(bottomSlots.get(lowestRow).values()));
@@ -423,12 +415,12 @@ public class Problem {
         //Als alle outputsjobs klaar zijn werken we de overige input jobs af
         for (Job j_in: inputJobSequenceCopy){
             int lowestHeight = -1;
-            for(int j : heightList){
+            for(int j : filledLevelList){
                 if(j > lowestHeight){
                     lowestHeight = j;
                 }
             }
-            int lowestRow = heightList.indexOf(lowestHeight);
+            int lowestRow = filledLevelList.indexOf(lowestHeight);
             Slot destination = searchViableSlot(new HashSet<>(bottomSlots.get(lowestRow).values()));
 
             //Het item effectief verplaatsen door de moves te berekenen en de data aan te passen
@@ -438,11 +430,15 @@ public class Problem {
         }
         return moves;
     }
-    public List<Move> clearTop(Slot s, Gantry g){
-        /*
-            Deze methode verplaatst alle items boven een bepaald slot (uitgraven) naar een zo dicht mogelijke rij.
-         */
 
+    /**
+     * Deze methode verplaatst alle items boven een bepaald slot (uitgraven) naar een zo dicht mogelijke rij.
+     * @param s Item dat weg moet (1ste keer: de parent van het item dat we nodig hebben voor de job)
+     * @param g Kraan die dit moet uitvoeren
+     * @return een list van moves die nodig zijn voor de actie
+     */
+
+    public List<Move> clearTop(Slot s, Gantry g){
         List<Move> moves = new ArrayList<>();
 
         //Recursief naar boven gaan in de stapel, deze moeten eerst verplaatst worden
@@ -479,10 +475,14 @@ public class Problem {
 
         return moves;
     }
+
+    /**
+     * Deze methode zoekt in een bepaalde rij een zo laag mogelijke vrij slot en returnt dit.
+     * @param toCheck set van Slots die overlopen moeten worden (beginnend bij de bodemrij)
+     * @return 1 vrij slot
+     */
+
     public Slot searchViableSlot(Set<Slot> toCheck){
-        /*
-            Deze methode zoekt in een bepaalde rij een zo laag mogelijke vrij slot en returnt dit.
-         */
 
         //hoogste niveau bereikt;
         if(toCheck.isEmpty()){
@@ -506,11 +506,15 @@ public class Problem {
 
     }
 
-    public List<Move> createMoves(Gantry g, Slot pickup ,Slot delivery){
-        /*
-            Deze methode maakt alle moves aan voor een bepaalde kraan met een bepaald pickup en delivery slot.
-         */
+    /**
+     * Deze methode maakt alle moves aan voor een bepaalde kraan met een bepaald pickup en delivery slot.
+     * @param g Kraan die de move doet
+     * @param pickup Slot waar item ligt dat moet opgenomen worden
+     * @param delivery Slot waar item moet terecht komen
+     * @return een set van moves die nodig zijn om deze actie uit te voeren
+     */
 
+    public List<Move> createMoves(Gantry g, Slot pickup ,Slot delivery){
 
         List<Move> moves = new ArrayList<>();
         //Een basis sequentie van moves bestaat uit 4 verschillende moves:
@@ -534,7 +538,7 @@ public class Problem {
         if(mode == -1){
             itemSlotMap.remove(from.getItem().getId());
             from.setItem(null);
-            heightList.set((int) from.getCenterY()/10, findFullLevel(new HashSet<>(bottomSlots.get((int) from.getCenterY()/10).values())));
+            filledLevelList.set((int) from.getCenterY()/10, findFullLevel(new HashSet<>(bottomSlots.get((int) from.getCenterY()/10).values())));
         }
         //0 betekent een item intern verplaatsen
         if(mode == 0){
@@ -542,25 +546,27 @@ public class Problem {
             from.setItem(null);
             itemSlotMap.put(to.getItem().getId(), to);
 
-            heightList.set((int) from.getCenterY()/10, findFullLevel(new HashSet<>(bottomSlots.get((int) from.getCenterY()/10).values())));
-            heightList.set((int) to.getCenterY()/10, findFullLevel(new HashSet<>(bottomSlots.get((int) to.getCenterY()/10).values())));
+            filledLevelList.set((int) from.getCenterY()/10, findFullLevel(new HashSet<>(bottomSlots.get((int) from.getCenterY()/10).values())));
+            filledLevelList.set((int) to.getCenterY()/10, findFullLevel(new HashSet<>(bottomSlots.get((int) to.getCenterY()/10).values())));
         }
+        //1 betekent een item toevoegen aan de opslagplaats
         if(mode == 1){
             to.setItem(from.getItem());
             from.setItem(null);
             itemSlotMap.put(to.getItem().getId(), to);
-            heightList.set((int) to.getCenterY()/10, findFullLevel(new HashSet<>(bottomSlots.get((int) to.getCenterY()/10).values())));
+            filledLevelList.set((int) to.getCenterY()/10, findFullLevel(new HashSet<>(bottomSlots.get((int) to.getCenterY()/10).values())));
 
         }
     }
 
+    /**
+     * Deze methode berekent het aantal volledig bezette niveaus van een bepaalde rij
+     *
+     * @param toCheck set van Slots (1ste keer onderste rij)
+     * @return geeft het aantal volledig volzette niveaus terug
+     */
     public static int findFullLevel(Set<Slot> toCheck){
-        /*
-            Deze methode berekent het aantal volledig bezette niveaus van een bepaalde rij
-         */
-
         Set<Slot> nextLevel = new HashSet<>();
-        boolean full = true;
         //Voor de slots waar items in zitten zullen de parents moeten gecheckt worden;
         for(Slot s: toCheck){
             if(s == null || s.getItem() == null || s.getParent() == null){
