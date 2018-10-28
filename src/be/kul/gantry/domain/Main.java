@@ -4,6 +4,7 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.List;
 
 public class Main {
     public static void main(String [ ] args){
@@ -13,11 +14,14 @@ public class Main {
             BufferedWriter writer = new BufferedWriter(new FileWriter("output.csv"));
             writer.write("\"gID\";\"T\";\"x\";\"y\";\"itemsInCraneID\"");
 
-            for(Move m: problem.solve()){
+            long startTime = System.currentTimeMillis();
+            List<Move> moves = problem.solve();
+            System.out.println(System.currentTimeMillis() - startTime);
+
+            for(Move m: moves){
                 writer.write("\n");
                 writer.write(m.toString());
             }
-
             writer.close();
         }
         catch(Exception e){

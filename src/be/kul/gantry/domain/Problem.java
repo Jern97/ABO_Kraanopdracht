@@ -388,7 +388,7 @@ public class Problem {
                 int lowestRow = filledLevelList.indexOf(lowestHeight);
 
                 //In deze rij wordt een vrije plaats gezocht voor het item
-                Slot destination = searchViableSlot(new HashSet<>(bottomSlots.get(lowestRow).values()));
+                Slot destination = searchViableSlot(new ArrayList<>(bottomSlots.get(lowestRow).values()), 0);
 
                 //Het item effectief verplaatsen door de moves te berekenen en de data aan te passen
                 j_in.getPickup().getSlot().setItem(j_in.getItem());
@@ -421,7 +421,7 @@ public class Problem {
                 }
             }
             int lowestRow = filledLevelList.indexOf(lowestHeight);
-            Slot destination = searchViableSlot(new HashSet<>(bottomSlots.get(lowestRow).values()));
+            Slot destination = searchViableSlot(new ArrayList<>(bottomSlots.get(lowestRow).values()),0);
 
             //Het item effectief verplaatsen door de moves te berekenen en de data aan te passen
             j_in.getPickup().getSlot().setItem(j_in.getItem());
@@ -462,8 +462,8 @@ public class Problem {
                 continue;
             }
             //Alle sloten in de onderste rij vastnemen en beginnen zoeken voor een vrije plaats.
-            Set<Slot> bottomRow = new HashSet<>(bottomSlots.get(((int) s.getCenterY()/10) + offset).values());
-            newLocation = searchViableSlot(bottomRow);
+            ArrayList<Slot> bottomRow = new ArrayList<>(bottomSlots.get(((int) s.getCenterY()/10) + offset).values());
+            newLocation = searchViableSlot(bottomRow, (int) s.getCenterX()/10);
 
             magnitude += 1;
         }
@@ -479,31 +479,44 @@ public class Problem {
     /**
      * Deze methode zoekt in een bepaalde rij een zo laag mogelijke vrij slot en returnt dit.
      * @param toCheck set van Slots die overlopen moeten worden (beginnend bij de bodemrij)
+     * @param prefferedX de x snelheid van de kraan is traag, daarom is het beter om een plekje te vinden dat gewoon naast de orignele plek ligt
      * @return 1 vrij slot
      */
 
-    public Slot searchViableSlot(Set<Slot> toCheck){
+    public Slot searchViableSlot(List<Slot> toCheck, int prefferedX) {
 
         //hoogste niveau bereikt;
-        if(toCheck.isEmpty()){
+        if (toCheck.isEmpty()) {
             return null;
         }
+        List<Slot> nextLevel = new ArrayList<>();
 
 
-        //Checken voor een vrij plaats op dit niveau
-        for(Slot s: toCheck){
-            if (s.getItem() == null){
-                return s;
+        //Checken voor een vrij plaats op dit niveau, beginnend bij prefferedX
+        if(toCheck.get(prefferedX).getItem() == null) return toCheck.get(prefferedX);
+
+        if(toCheck.get(prefferedX).getParent() != null) nextLevel.add(toCheck.get(prefferedX).getParent());
+
+        //verder zoeken in de buurt van X;
+        int offsetLeft = prefferedX-1;
+        int offsetRight = prefferedX+1;
+        while(offsetLeft != -1 || offsetRight != toCheck.size() ) {
+            if (offsetLeft != -1){
+                Slot left = toCheck.get(offsetLeft);
+                offsetLeft--;
+                if(left.getItem() == null) return left;
+                if(left.getParent()!=null) nextLevel.add(left.getParent());
+            }
+            if(offsetRight != toCheck.size() ){
+                Slot right = toCheck.get(offsetRight);
+                offsetRight++;
+                if(right.getItem() == null) return right;
+                if(right.getParent()!=null) nextLevel.add(right.getParent());
             }
         }
 
-        //Alle parents toevoegen aan lijst en niveau hoger gaan zoeken
-        Set<Slot> nextLevel = new HashSet<>();
-        for(Slot s: toCheck){
-            if(s.getParent() != null) nextLevel.add(s.getParent());
-        }
-        return searchViableSlot(nextLevel);
-
+        //We hebben geen oplossing gevonden, dus alle parents toevoegen aan lijst en niveau hoger gaan zoeken
+        return searchViableSlot(nextLevel, 0);
     }
 
     /**
