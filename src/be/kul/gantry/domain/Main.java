@@ -12,8 +12,13 @@ public class Main {
         INPUT_FILE = args[0]+".json";
         OUTPUT_FILE = args[0]+"_out.csv";
         try{
-            Problem problem = Problem.fromJsonStaggered(new File(INPUT_FILE));
-
+            Problem problem;
+            if(INPUT_FILE.contains("TRUE")){
+                problem = Problem.fromJsonStaggered(new File(INPUT_FILE));
+            }
+            else{
+                problem = Problem.fromJsonNotStaggered(new File(INPUT_FILE));
+            }
             BufferedWriter writer = new BufferedWriter(new FileWriter(OUTPUT_FILE));
             writer.write("\"gID\";\"T\";\"x\";\"y\";\"itemsInCraneID\"");
 
