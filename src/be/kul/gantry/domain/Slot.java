@@ -1,5 +1,7 @@
 package be.kul.gantry.domain;
 
+import java.util.ArrayList;
+
 /**
  * Created by Wim on 27/04/2015.
  */
@@ -8,8 +10,8 @@ public class Slot {
     private final int id;
     private final int centerX, centerY, xMin, xMax, yMin, yMax,z;
     private Item item;
-    private Slot parent;
-    private Slot child;
+    private ArrayList<Slot> parents = new ArrayList<>();
+    private ArrayList<Slot> children = new ArrayList<>();
     private final SlotType type;
 
     public Slot(int id, int centerX, int centerY, int xMin, int xMax, int yMin, int yMax, int z, SlotType type, Item item) {
@@ -23,21 +25,10 @@ public class Slot {
         this.z = z;
         this.item = item;
         this.type = type;
-    }
-
-    public Slot(int id, int centerX, int centerY, int xMin, int xMax, int yMin, int yMax, int z, Item item, Slot parent, Slot child, SlotType type) {
-        this.id = id;
-        this.centerX = centerX;
-        this.centerY = centerY;
-        this.xMin = xMin;
-        this.xMax = xMax;
-        this.yMin = yMin;
-        this.yMax = yMax;
-        this.z = z;
-        this.item = item;
-        this.parent = parent;
-        this.child = child;
-        this.type = type;
+        parents.add(null);
+        parents.add(null);
+        children.add(null);
+        children.add(null);
     }
 
     public int getId() {
@@ -90,20 +81,36 @@ public class Slot {
 
     public boolean isStorageSlot() { return type == SlotType.STORAGE; }
 
-    public Slot getParent() {
-        return parent;
+    public void addChild(Slot child){
+        int index = 0;
+        for(Slot s: children){
+            if(s == null){
+                children.remove(s);
+                break;
+            }
+            index++;
+        }
+        children.add(index,child);
     }
 
-    public void setParent(Slot parent) {
-        this.parent = parent;
+    public void addParent(Slot parent){
+        int index = 0;
+        for(Slot s: parents){
+            if(s == null){
+                parents.remove(s);
+                break;
+            }
+            index++;
+        }
+        parents.add(index, parent);
     }
 
-    public Slot getChild() {
-        return child;
+    public ArrayList<Slot> getParents() {
+        return parents;
     }
 
-    public void setChild(Slot child) {
-        this.child = child;
+    public ArrayList<Slot> getChildren() {
+        return children;
     }
 
     @Override

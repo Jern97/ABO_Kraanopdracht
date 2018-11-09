@@ -3,16 +3,16 @@ package be.kul.gantry.domain;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
-import java.io.IOException;
-import java.util.List;
 
 public class Main {
-    static String INPUT_FILE = "1_10_100_4_FALSE_65_50_50.json";
-    static String OUTPUT_FILE = "output.csv";
+    static String INPUT_FILE;
+    static String OUTPUT_FILE;
 
     public static void main(String [ ] args){
+        INPUT_FILE = args[0]+".json";
+        OUTPUT_FILE = args[0]+"_out.csv";
         try{
-            Problem problem = Problem.fromJson(new File(INPUT_FILE));
+            Problem problem = Problem.fromJsonStaggered(new File(INPUT_FILE));
 
             BufferedWriter writer = new BufferedWriter(new FileWriter(OUTPUT_FILE));
             writer.write("\"gID\";\"T\";\"x\";\"y\";\"itemsInCraneID\"");

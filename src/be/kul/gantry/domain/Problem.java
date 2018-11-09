@@ -200,7 +200,7 @@ public class Problem {
 
     }
 
-    public static Problem fromJson(File file) throws IOException, ParseException {
+    public static Problem fromJsonNotStaggered(File file) throws IOException, ParseException {
 
 
         JSONParser parser = new JSONParser();
@@ -277,11 +277,194 @@ public class Problem {
                     Slot child = bodemSlots.get((int) cy/10).get((int) cx/10);
                     //Child updaten naar gelang waarde van z, we zoeken de child van nieuwe node S
                     for(int i = 1; i<z; i++){
-                        child = child.getParent();
+                        child = child.getParents().get(0);
                     }
                     //Een keer we de child gevonden hebben updaten we de relaties;
-                    s.setChild(child);
-                    child.setParent(s);
+                    s.addChild(child);
+                    child.addParent(s);
+                }
+
+                //toevoegen van link item -> slot aan hashmap indien het slot gevuld is;
+                if(c != null){
+                    itemSlotMap.put(c.getId(), s);
+                }
+
+
+                slotList.add(s);
+            }
+
+
+            JSONArray gantries = (JSONArray) root.get("gantries");
+            for(Object o : gantries) {
+                JSONObject gantry = (JSONObject) o;
+
+
+                int id = ((Long)gantry.get("id")).intValue();
+                int xMin = ((Long)gantry.get("xMin")).intValue();
+                int xMax = ((Long)gantry.get("xMax")).intValue();
+                int startX = ((Long)gantry.get("startX")).intValue();
+                int startY = ((Long)gantry.get("startY")).intValue();
+                double xSpeed = ((Double)gantry.get("xSpeed")).doubleValue();
+                double ySpeed = ((Double)gantry.get("ySpeed")).doubleValue();
+
+                Gantry g = new Gantry(id, xMin, xMax, startX, startY, xSpeed, ySpeed);
+                gantryList.add(g);
+            }
+
+            JSONArray inputJobs = (JSONArray) root.get("inputSequence");
+            int jid = 0;
+            for(Object o : inputJobs) {
+                JSONObject inputJob = (JSONObject) o;
+
+                int iid = ((Long) inputJob.get("itemId")).intValue();
+                int sid = ((Long) inputJob.get("fromId")).intValue();
+
+                Job job = new Job(jid++,itemList.get(iid),slotList.get(sid),null);
+                inputJobList.add(job);
+            }
+
+            JSONArray outputJobs = (JSONArray) root.get("outputSequence");
+            for(Object o : outputJobs) {
+                JSONObject outputJob = (JSONObject) o;
+
+                int iid = ((Long) outputJob.get("itemId")).intValue();
+                int sid = ((Long) outputJob.get("toId")).intValue();
+
+                Job job = new Job(jid++,itemList.get(iid),null, slotList.get(sid));
+                outputJobList.add(job);
+            }
+
+
+            return new Problem(
+                    overallMinX,
+                    overallMaxX,
+                    overallMinY,
+                    overallMaxY,
+                    maxLevels,
+                    itemList,
+                    inputJobList,
+                    outputJobList,
+                    gantryList,
+                    slotList,
+                    safetyDist,
+                    pickupPlaceDuration,
+                    bodemSlots,
+                    itemSlotMap);
+
+        }
+
+    }
+
+    public static Problem fromJsonStaggered(File file) throws IOException, ParseException {
+
+        JSONParser parser = new JSONParser();
+
+        try(FileReader reader = new FileReader(file)) {
+            JSONObject root = (JSONObject) parser.parse(reader);
+
+            List<Item> itemList = new ArrayList<>();
+            List<Slot> slotList = new ArrayList<>();
+            List<Gantry> gantryList = new ArrayList<>();
+            List<Job> inputJobList = new ArrayList<>();
+            List<Job> outputJobList = new ArrayList<>();
+
+            JSONObject parameters = (JSONObject) root.get("parameters");
+            int safetyDist = ((Long)parameters.get("gantrySafetyDistance")).intValue();
+            int maxLevels = ((Long)parameters.get("maxLevels")).intValue();
+            int pickupPlaceDuration = ((Long)parameters.get("pickupPlaceDuration")).intValue();
+
+            JSONArray items = (JSONArray) root.get("items");
+            for(Object o : items) {
+                int id = ((Long)((JSONObject)o).get("id")).intValue();
+
+                Item c = new Item(id);
+                itemList.add(c);
+            }
+
+
+            int overallMinX = Integer.MAX_VALUE, overallMaxX = Integer.MIN_VALUE;
+            int overallMinY = Integer.MAX_VALUE, overallMaxY = Integer.MIN_VALUE;
+
+            JSONArray slots = (JSONArray) root.get("slots");
+
+            //We maken een 2D Array aan voor alle bodem slots (z=0)
+            HashMap<Integer, HashMap<Integer, Slot>> bodemSlots = new HashMap<>();
+            HashMap<Integer, Slot> itemSlotMap = new HashMap<>();
+
+            for(Object o : slots) {
+                JSONObject slot = (JSONObject) o;
+
+                int id = ((Long)slot.get("id")).intValue();
+                int cx = ((Long)slot.get("cx")).intValue();
+                int cy = ((Long)slot.get("cy")).intValue();
+                int minX = ((Long)slot.get("minX")).intValue();
+                int minY = ((Long)slot.get("minY")).intValue();
+                int maxX = ((Long)slot.get("maxX")).intValue();
+                int maxY = ((Long)slot.get("maxY")).intValue();
+                int z = ((Long)slot.get("z")).intValue();
+
+                overallMinX = Math.min(overallMinX,minX);
+                overallMaxX = Math.max(overallMaxX,maxX);
+                overallMinY = Math.min(overallMinY,minY);
+                overallMaxY = Math.max(overallMaxY,maxY);
+
+                Slot.SlotType type = Slot.SlotType.valueOf((String)slot.get("type"));
+                Integer itemId = slot.get("itemId") == null ? null : ((Long)slot.get("itemId")).intValue();
+                Item c = itemId == null ? null : itemList.get(itemId);
+
+                Slot s = new Slot(id,cx,cy,minX,maxX,minY,maxY,z,type,c);
+
+                //Als Z=0 is ligt het slot op de bodem en moeten we het toevoegen een de 2D Array van bodemslots;
+                if(z == 0){
+                    //Hashmap in hashmap steken als key nog leeg is
+                    bodemSlots.putIfAbsent((int) cy/10, new HashMap<>());
+                    //Enkel toevoegen als het geen input of output slot is;
+                    if(!s.getType().name().equals("INPUT") && !s.getType().name().equals("OUTPUT")){
+                        bodemSlots.get((int) cy/10).put((int) cx/10, s);
+
+                    }
+                }
+                else{
+                    //Beginnen bij onderste slot, halen uit bottomSlots lijst
+                    boolean oneParent;
+                    Slot child = null;
+                    Slot child1 = null;
+                    Slot child2 = null;
+                    if(z % 2 == 0){
+                        child = bodemSlots.get((int) cy/10).get((int) (cx)/10);
+                        oneParent = false;
+                    }
+                    else {
+                        child1 = bodemSlots.get((int) cy / 10).get((int) (cx - 5) / 10);
+                        child2 = bodemSlots.get((int) cy / 10).get((int) (cx + 5) / 10);
+                        oneParent = true;
+                        //Child updaten naar gelang waarde van z, we zoeken de child van nieuwe node S
+                    }
+                    for(int i = 1; i<z; i++){
+                        if(!oneParent) {
+                            child1 = child.getParents().get(0);
+                            child2 = child.getParents().get(1);
+                            oneParent = true;
+                        }
+                        else{
+                            Set<Slot> parentSet = new HashSet<>();
+                            List<Slot> parentList = new ArrayList<>();
+                            parentList.addAll(child1.getParents());
+                            parentList.addAll(child2.getParents());
+                            for(Slot parent: parentList){
+                                if(!parentSet.add(parent)){
+                                    child = parent;
+                                    break;
+                                }
+                            }
+                            oneParent = false;
+                        }
+                    }
+                    //Een keer we de child gevonden hebben updaten we de relaties;
+                    s.addChild(child1);
+                    s.addChild(child2);
+                    child1.addParent(s);
+                    child2.addParent(s);
                 }
 
                 //toevoegen van link item -> slot aan hashmap indien het slot gevuld is;
@@ -403,8 +586,11 @@ public class Problem {
             }
 
             //Als het item dat verwijderd moet worden parents heeft met items moeten deze eerst verplaatst worden;
-            if(s.getParent() != null && s.getParent().getItem() != null){
-                moves.addAll(clearTop(s.getParent(), gantries.get(0)));
+            if(s.getParents().get(0) != null && s.getParents().get(0).getItem() != null){
+                moves.addAll(clearTop(s.getParents().get(0), gantries.get(0)));
+            }
+            if(s.getParents().get(1) != null && s.getParents().get(1).getItem() != null){
+                moves.addAll(clearTop(s.getParents().get(1), gantries.get(0)));
             }
 
             //Het item effectief verplaatsen door de moves te berekenen en de data aan te passen
@@ -442,8 +628,11 @@ public class Problem {
         List<Move> moves = new ArrayList<>();
 
         //Recursief naar boven gaan in de stapel, deze moeten eerst verplaatst worden
-        if(s.getParent() != null && s.getParent().getItem() != null){
-            moves.addAll(clearTop(s.getParent(), g));
+        if(s.getParents().get(0) != null && s.getParents().get(0).getItem() != null){
+            moves.addAll(clearTop(s.getParents().get(0), g));
+        }
+        if(s.getParents().get(1) != null && s.getParents().get(1).getItem() != null){
+            moves.addAll(clearTop(s.getParents().get(1), g));
         }
 
         //Nieuwe locatie zoeken voor item (in een zo dicht mogelijke rij)
@@ -495,7 +684,13 @@ public class Problem {
         //Checken voor een vrij plaats op dit niveau, beginnend bij prefferedX
         if(toCheck.get(prefferedX).getItem() == null) return toCheck.get(prefferedX);
 
-        if(toCheck.get(prefferedX).getParent() != null) nextLevel.add(toCheck.get(prefferedX).getParent());
+        if(toCheck.get(prefferedX).getParents().get(0) != null) {
+            nextLevel.add(toCheck.get(prefferedX).getParents().get(0));
+        }
+        if(toCheck.get(prefferedX).getParents().get(1) != null){
+            nextLevel.add(toCheck.get(prefferedX).getParents().get(1));
+        }
+
 
         //verder zoeken in de buurt van X;
         int offsetLeft = prefferedX-1;
@@ -505,13 +700,16 @@ public class Problem {
                 Slot left = toCheck.get(offsetLeft);
                 offsetLeft--;
                 if(left.getItem() == null) return left;
-                if(left.getParent()!=null) nextLevel.add(left.getParent());
+                if(left.getParents().get(0)!=null && !nextLevel.contains(left.getParents().get(0))) nextLevel.add(left.getParents().get(0));
+                if(left.getParents().get(1)!=null && !nextLevel.contains(left.getParents().get(1))) nextLevel.add(left.getParents().get(1));
+
             }
             if(offsetRight != toCheck.size() ){
                 Slot right = toCheck.get(offsetRight);
                 offsetRight++;
                 if(right.getItem() == null) return right;
-                if(right.getParent()!=null) nextLevel.add(right.getParent());
+                if(right.getParents().get(0)!=null && !nextLevel.contains(right.getParents().get(0))) nextLevel.add(right.getParents().get(0));
+                if(right.getParents().get(1)!=null && !nextLevel.contains(right.getParents().get(1))) nextLevel.add(right.getParents().get(1));
             }
         }
 
@@ -582,12 +780,12 @@ public class Problem {
         Set<Slot> nextLevel = new HashSet<>();
         //Voor de slots waar items in zitten zullen de parents moeten gecheckt worden;
         for(Slot s: toCheck){
-            if(s == null || s.getItem() == null || s.getParent() == null){
+            if(s == null || s.getItem() == null){
                 //niveau is niet helemaal vol
                 return 0;
             }
             else{
-                nextLevel.add(s.getParent());
+                nextLevel.addAll(s.getParents());
             }
         }
         //Geen lege slots op dit niveau, we gaan een niveau omhoog
