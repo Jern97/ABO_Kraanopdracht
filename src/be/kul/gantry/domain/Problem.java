@@ -26,10 +26,10 @@ public class Problem {
     private final List<Job> inputJobSequence;
     private final List<Job> outputJobSequence;
 
-    private final List<Gantry> gantries;
+    public static List<Gantry> gantries;
     private final List<Slot> slots;
-    private final int safetyDistance;
-    private final int pickupPlaceDuration;
+    public static int safetyDistance;
+    public static int pickupPlaceDuration;
     private Slot inputSlot;
     private Slot outputSlot;
     private HashMap<Integer, HashMap<Integer, Slot>> bottomSlots;
@@ -575,7 +575,7 @@ public class Problem {
 
                 //Het item effectief verplaatsen door de moves te berekenen en de data aan te passen
                 j_in.getPickup().getSlot().setItem(j_in.getItem());
-                moves.addAll(createMoves(gantries.get(0),j_in.getPickup().getSlot(), destination));
+                moves.addAll(MoveGenerator.getInstance().createMoves(gantries.get(0),j_in.getPickup().getSlot(), destination));
                 updateData(j_in.getPickup().getSlot(), destination, 1);
 
                 //De job uit de lijst verwijderen
@@ -594,7 +594,7 @@ public class Problem {
             }
 
             //Het item effectief verplaatsen door de moves te berekenen en de data aan te passen
-            moves.addAll(createMoves(gantries.get(0), s, j_out.getPlace().getSlot()));
+            moves.addAll(MoveGenerator.getInstance().createMoves(gantries.get(0), s, j_out.getPlace().getSlot()));
             updateData(s, j_out.getPlace().getSlot(), -1);
         }
 
@@ -611,7 +611,7 @@ public class Problem {
 
             //Het item effectief verplaatsen door de moves te berekenen en de data aan te passen
             j_in.getPickup().getSlot().setItem(j_in.getItem());
-            moves.addAll(createMoves(gantries.get(0),j_in.getPickup().getSlot(), destination));
+            moves.addAll(MoveGenerator.getInstance().createMoves(gantries.get(0),j_in.getPickup().getSlot(), destination));
             updateData(j_in.getPickup().getSlot(), destination, 1);
         }
         return moves;
@@ -658,7 +658,7 @@ public class Problem {
         }
 
         //Item effectief verplaatsen
-        moves.addAll(createMoves(g, s, newLocation));
+        moves.addAll(MoveGenerator.getInstance().createMoves(g, s, newLocation));
         //Slots en hashmap updaten
         updateData(s, newLocation, 0);
 
@@ -717,30 +717,7 @@ public class Problem {
         return searchViableSlot(nextLevel, 0);
     }
 
-    /**
-     * Deze methode maakt alle moves aan voor een bepaalde kraan met een bepaald pickup en delivery slot.
-     * @param g Kraan die de move doet
-     * @param pickup Slot waar item ligt dat moet opgenomen worden
-     * @param delivery Slot waar item moet terecht komen
-     * @return een set van moves die nodig zijn om deze actie uit te voeren
-     */
 
-    public List<Move> createMoves(Gantry g, Slot pickup ,Slot delivery){
-
-        List<Move> moves = new ArrayList<>();
-        //Een basis sequentie van moves bestaat uit 4 verschillende moves:
-
-        //De kraan bewegen naar het te verplaatsen item;
-        moves.add(new Move(g, pickup.getCenterX(), pickup.getCenterY(), null, 0));
-        //Item oppikken in de kraan;
-        moves.add(new Move(g, g.getX(), g.getY(), pickup.getItem().getId(), pickupPlaceDuration));
-        //Item vervoeren naar destination;
-        moves.add(new Move(g, delivery.getCenterX(), delivery.getCenterY(), pickup.getItem().getId(), 0));
-        //Item droppen op destination;
-        moves.add(new Move(g, g.getX(), g.getY(), null, pickupPlaceDuration));
-
-        return moves;
-    }
 
     public void updateData(Slot from, Slot to, int mode){
         //Items in slots worden aangepast en de hoogte van de rij(en) worden aangepast;

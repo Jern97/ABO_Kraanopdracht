@@ -1,5 +1,7 @@
 package be.kul.gantry.domain;
 
+import java.util.Objects;
+
 /**
  * Created by Wim on 27/04/2015.
  */
@@ -25,6 +27,19 @@ public class Gantry {
         this.startY = startY;
         this.xSpeed = xSpeed;
         this.ySpeed = ySpeed;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Gantry gantry = (Gantry) o;
+        return id == gantry.id;
+    }
+
+    @Override
+    public int hashCode() {
+        return id;
     }
 
     public int getId() {
