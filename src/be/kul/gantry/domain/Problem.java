@@ -584,17 +584,17 @@ public class Problem {
                 //Opnieuw zoeken voor het Slot van de outputjob
                 s = itemSlotMap.get(j_out.getItem().getId());
             }
-
+            //TODO: tijd van gantry 1 doorspoelen tot het moment dat het item in de yard staat
             //Als het item dat verwijderd moet worden parents heeft met items moeten deze eerst verplaatst worden;
             if(s.getParents().get(0) != null && s.getParents().get(0).getItem() != null){
-                moves.addAll(clearTop(s.getParents().get(0), gantries.get(0)));
+                moves.addAll(clearTop(s.getParents().get(0), gantries.get(1)));
             }
             if(s.getParents().get(1) != null && s.getParents().get(1).getItem() != null){
-                moves.addAll(clearTop(s.getParents().get(1), gantries.get(0)));
+                moves.addAll(clearTop(s.getParents().get(1), gantries.get(1)));
             }
 
             //Het item effectief verplaatsen door de moves te berekenen en de data aan te passen
-            moves.addAll(MoveGenerator.getInstance().createMoves(gantries.get(0), s, j_out.getPlace().getSlot()));
+            moves.addAll(MoveGenerator.getInstance().createMoves(gantries.get(1), s, j_out.getPlace().getSlot()));
             updateData(s, j_out.getPlace().getSlot(), -1);
         }
 

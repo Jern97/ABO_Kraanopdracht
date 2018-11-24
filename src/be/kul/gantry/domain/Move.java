@@ -8,7 +8,7 @@ public class Move {
     private int y;
     private Integer itemInCraneID;
 
-    public Move(Gantry gantry, int x_destination, int y_destination, Integer itemInCraneID, double additionalTime) {
+    public Move(Gantry gantry, int x_destination, int y_destination, Integer itemInCraneID, double additionalTime, boolean updateGantry) {
         this.gantry = gantry;
 
         //de totale tijd hiervoor nodig hangt af van de langst durende beweging (X of Y)
@@ -17,10 +17,12 @@ public class Move {
         this.y = y_destination;
         this.itemInCraneID = itemInCraneID;
 
-        //Kraan updaten;
-        gantry.setTime(time);
-        gantry.setX(x);
-        gantry.setY(y);
+        if(updateGantry) {
+            //Kraan updaten;
+            gantry.setTime(time);
+            gantry.setX(x);
+            gantry.setY(y);
+        }
     }
 
     public String toString(){

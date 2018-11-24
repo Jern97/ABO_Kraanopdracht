@@ -27,6 +27,8 @@ public class Gantry {
         this.startY = startY;
         this.xSpeed = xSpeed;
         this.ySpeed = ySpeed;
+        this.x = startX;
+        this.y = startY;
     }
 
     @Override
