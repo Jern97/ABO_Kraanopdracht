@@ -10,10 +10,10 @@
    <children>
       <LineChart fx:id="linechart" prefHeight="558.0" prefWidth="745.0" AnchorPane.bottomAnchor="50.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
         <xAxis>
-          <NumberAxis side="BOTTOM" />
+          <NumberAxis fx:id="xaxis" side="BOTTOM" />
         </xAxis>
         <yAxis>
-          <NumberAxis side="LEFT" />
+          <NumberAxis fx:id="yaxis" side="LEFT" />
         </yAxis>
       </LineChart>
       <TextField fx:id="lower" layoutX="128.0" layoutY="508.0" promptText="start" AnchorPane.bottomAnchor="19.0" AnchorPane.leftAnchor="128.0" />

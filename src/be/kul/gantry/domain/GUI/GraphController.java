@@ -26,52 +26,50 @@ public class GraphController {
     @FXML
     Button setbutton;
 
-    private XYChart.Series gantry0;
-    private XYChart.Series gantry1;
-
-    NumberAxis xAxis;
-    NumberAxis yAxis;
+    private XYChart.Series gantry0 = new XYChart.Series();
+    private XYChart.Series gantry1 = new XYChart.Series();
 
     @FXML
-    public void initialize(){
-        xAxis = (NumberAxis) linechart.getXAxis();
-        yAxis = (NumberAxis) linechart.getYAxis();
+    NumberAxis xaxis;
 
+    @FXML
+    NumberAxis yaxis;
+
+    @FXML
+    public void initialize() {
         setbutton.setOnAction(e -> {
             updateBounds();
         });
 
         resetbutton.setOnAction(e -> {
-            xAxis.setAutoRanging(true);
+            xaxis.setAutoRanging(true);
         });
 
-        xAxis.setLabel("time");
-        yAxis.setLabel("x");
-        xAxis.setAutoRanging(true);
-        yAxis.setAutoRanging(true);
+        xaxis.setLabel("time");
+        yaxis.setLabel("x");
+        xaxis.setAutoRanging(true);
+        yaxis.setAutoRanging(true);
 
-        gantry0 = new XYChart.Series();
         gantry0.setName("Gantry 0");
-        gantry1 = new XYChart.Series();
         gantry1.setName("Gantry 1");
 
         linechart.getData().add(gantry0);
         linechart.getData().add(gantry1);
     }
 
-    public void addMove(Move m){
-        if(m.getGantry().getId() == 0){
+    public void addMove(Move m) {
+        if (m.getGantry().getId() == 0) {
             gantry0.getData().add(new XYChart.Data(m.getTime(), m.getX()));
         }
-        if(m.getGantry().getId() == 1){
+        if (m.getGantry().getId() == 1) {
             gantry1.getData().add(new XYChart.Data(m.getTime(), m.getX()));
         }
     }
 
-    public void updateBounds(){
-        xAxis.setAutoRanging(false);
-        xAxis.setLowerBound(Integer.parseInt(lower.getText()));
-        xAxis.setUpperBound(Integer.parseInt(upper.getText()));
+    public void updateBounds() {
+        xaxis.setAutoRanging(false);
+        xaxis.setLowerBound(Integer.parseInt(lower.getText()));
+        xaxis.setUpperBound(Integer.parseInt(upper.getText()));
     }
 
 }
