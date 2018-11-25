@@ -1,7 +1,8 @@
 package be.kul.gantry.domain;
 
-import be.kul.gantry.domain.GUI.GraphController;
 import be.kul.gantry.domain.GUI.MoveListener;
+
+import static java.lang.Thread.sleep;
 
 public class Move {
 
@@ -26,7 +27,12 @@ public class Move {
             gantry.setX(x);
             gantry.setY(y);
 
-            MoveListener.getInstance().reportNewMove(this);
+            MoveListener.getInstance().getGraphDriver().addMove(this);
+            try {
+                sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
     }
 

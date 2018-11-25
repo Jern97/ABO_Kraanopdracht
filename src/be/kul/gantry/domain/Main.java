@@ -15,15 +15,21 @@ import java.io.File;
 import java.io.FileWriter;
 import java.util.List;
 
-public class Main extends Application{
+import static java.lang.Thread.sleep;
+
+public class Main {
     static String INPUT_FILE;
     static String OUTPUT_FILE;
-    static GraphController gc;
 
     public static void main(String[] args) {
         INPUT_FILE = args[0];
         OUTPUT_FILE = args[1];
-
+        MoveListener test= MoveListener.getInstance();
+        try {
+            sleep(3000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
 
 
         new Thread(new Runnable() {
@@ -66,11 +72,10 @@ public class Main extends Application{
 
 
 
-    }
 
 
-    @Override
-    public void start(Stage primaryStage) throws Exception {
 
     }
+
+
 }

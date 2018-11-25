@@ -18,7 +18,10 @@ public class GraphDriver extends Thread {
         gc= loadAndSetGui();
     }
 
+
+
     private GraphController loadAndSetGui() {
+        com.sun.javafx.application.PlatformImpl.startup(()->{});
         Parent root=null;
         GraphController controller = null;
         try{
@@ -48,10 +51,7 @@ public class GraphDriver extends Thread {
         return controller;
     }
 
-    @Override
-    public void run() {
 
-    }
 
     public void addMove(Move m) {
         gc.addMove(m);

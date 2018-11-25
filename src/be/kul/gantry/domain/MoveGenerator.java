@@ -105,11 +105,14 @@ public class MoveGenerator {
         boolean firstMoveFound = false;
 
         for (Move move : otherGantryMoves) {
-            if(move.getTime() >= beginTime && move.getTime() <= endTime) {
+            if(move.getTime() >= beginTime){
                 if (!firstMoveFound) {
                     firstMoveFound = true;
                     firstMoveInRange = otherGantryMoves.indexOf(move);
+                    lastMoveInRange = otherGantryMoves.indexOf(move);
                 }
+            }
+            if(move.getTime() >= beginTime && move.getTime() <= endTime) {
                 lastMoveInRange = otherGantryMoves.indexOf(move);
             }
         }

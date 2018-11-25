@@ -1,6 +1,7 @@
 package be.kul.gantry.domain.GUI;
 
 import be.kul.gantry.domain.Move;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.chart.LineChart;
 import javafx.scene.chart.NumberAxis;
@@ -47,7 +48,9 @@ public class GraphController {
 
         xaxis.setLabel("time");
         yaxis.setLabel("x");
-        xaxis.setAutoRanging(true);
+        xaxis.setForceZeroInRange(false);
+        xaxis.setUpperBound(1000);
+        xaxis.setAutoRanging(false);
         yaxis.setAutoRanging(true);
 
         gantry0.setName("Gantry 0");
@@ -58,12 +61,37 @@ public class GraphController {
     }
 
     public void addMove(Move m) {
-        if (m.getGantry().getId() == 0) {
-            gantry0.getData().add(new XYChart.Data(m.getTime(), m.getX()));
-        }
-        if (m.getGantry().getId() == 1) {
-            gantry1.getData().add(new XYChart.Data(m.getTime(), m.getX()));
-        }
+        Platform.runLater(new Runnable() {
+            @Override
+            public void run() {
+                if (m.getGantry().getId() == 0) {
+                    gantry0.getData().add(new XYChart.Data(m.getTime(), m.getX()));
+
+                }
+                if (m.getGantry().getId() == 1) {
+                    gantry1.getData().add(new XYChart.Data(m.getTime(), m.getX()));
+                }
+
+                System.out.println("lower " +xaxis.getLowerBound());
+                System.out.println("upper " +xaxis.getUpperBound());
+
+                double minDiff= Math.abs(xaxis.getLowerBound()- m.getTime());
+                double maxDiff= Math.abs(xaxis.getUpperBound()-m.getTime());
+                if(m.getTime()<xaxis.getLowerBound()+200){
+                    xaxis.setLowerBound(m.getTime()-200);
+                    xaxis.setUpperBound(xaxis.getLowerBound()+1000);
+                }
+                else if(m.getTime()>xaxis.getUpperBound()+200){
+                    xaxis.setLowerBound(m.getTime()-200);
+                    xaxis.setUpperBound(xaxis.getLowerBound()+1000);
+                }
+                else if(maxDiff<100){
+                    xaxis.setLowerBound(xaxis.getLowerBound()+600);
+                    xaxis.setUpperBound(xaxis.getUpperBound()+600);
+                }
+            }
+        });
+
     }
 
     public void updateBounds() {
