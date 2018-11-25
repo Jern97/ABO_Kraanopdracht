@@ -18,9 +18,9 @@ public class MoveGenerator {
         gantry1Moves = new ArrayList<>();
         Gantry gantry0 = Problem.gantries.get(0);
         Gantry gantry1 = Problem.gantries.get(1);
+        gantry0Moves.add(new Move(gantry0, gantry0.getX(), gantry0.getY(), null, -1, false));
         gantry0Moves.add(new Move(gantry0, gantry0.getX(), gantry0.getY(), null, 0, false));
-        gantry0Moves.add(new Move(gantry0, gantry0.getX(), gantry0.getY(), null, 0, false));
-        gantry1Moves.add(new Move(gantry1, gantry1.getX(), gantry1.getY(), null, 0, false));
+        gantry1Moves.add(new Move(gantry1, gantry1.getX(), gantry1.getY(), null, -1, false));
         gantry1Moves.add(new Move(gantry1, gantry1.getX(), gantry1.getY(), null, 0, false));
 
     }
@@ -128,139 +128,100 @@ public class MoveGenerator {
         //  (t2 - t1)
 
         double ricoA = (current.getX() - previous.getX()) / (current.getTime() - previous.getTime());
-        double offsetA = current.getX() - ricoA * current.getTime();
+        //double offsetA = current.getX() - ricoA * current.getTime();
 
 
         for (int i = 1; i < overlappingMoves.size(); i++) {
             Move previousOther = overlappingMoves.get(i - 1);
             Move currentOther = overlappingMoves.get(i);
 
-            double denominator = (currentOther.getTime() - previousOther.getTime());
-            double ricoB = denominator == 0 ? 0 : (currentOther.getX() - previousOther.getX()) / denominator;
-            double offsetB = currentOther.getX() - ricoB * currentOther.getTime();
+            double addedTime = calculateDelay(current, previous, currentOther, previousOther);
 
-            double tijdSnijpunt;
-            //evenwijdig
-            if (ricoA == ricoB) {
-                //Arbitrair op 0 zetten
-                tijdSnijpunt = 0;
-            } else tijdSnijpunt = (offsetB - offsetA) / (ricoA - ricoB);
-
-            Move closestCurrent = current.getTime() < currentOther.getTime() ? current : currentOther;
-            Move furthestPrevious = previous.getTime() > previousOther.getTime() ? previous : previousOther;
-            //snijpunt ligt binnen de grenzen van other move
-            if (tijdSnijpunt > furthestPrevious.getTime() && tijdSnijpunt < closestCurrent.getTime()) {
-                // TODO Collision detected
-
-                // zoek punt vanaf collision tot einde van currentother waar distance > safety, en anders gewoon op current other
-                double timePlus = ((previous.getX() + safetyDistance) - offsetB) / ricoB;
-                double timeMin = ((previous.getX() - safetyDistance) - offsetB) / ricoB;
-
-                double time = Math.max(timeMin, timePlus);
-
-                //Als ricoB 0 is dan snijden we het nooit
-                double addedTime = time < closestCurrent.getTime() && ricoB != 0 ? time - previous.getTime() : currentOther.getTime() - previous.getTime();
-                if(addedTime < 0){
-                    System.out.println("stop");
-                }
-
+            if(addedTime != 0 && currentOther == otherGantryMoves.get(otherGantryMoves.size()-1)){
+                //We kunnen de bestemming niet bereiken zonder de andere kraan te bewegen, we moeten hem verzetten
+                int xDestination = ricoA > 0 ? current.getX() + safetyDistance : current.getX() - safetyDistance;
+                otherGantryMoves.add(new Move(currentOther.getGantry(), xDestination, currentOther.getY(), currentOther.getItemInCraneID(), 0, true));
+                //opnieuw proberen
+                makeFeasible(g, previous, current);
+                break;
+            }
+            //Er moet gewacht worden, omdat er anders een collision is
+            else if(addedTime != 0){
+                //Wacht move toevoegen
                 Move waiting = new Move(g, previous.getX(), previous.getY(), previous.getItemInCraneID(), addedTime, true);
                 thisGantryMoves.add(waiting);
+                //Current move updaten naar de nieuwe tijd
                 Move updatedMove = new Move(current);
-
+                //Opnieuw proberen
                 makeFeasible(g, waiting, updatedMove);
-
+                break;
             }
-            // snijpunt valt voor grenzen van other move
-            else if (tijdSnijpunt < previousOther.getTime()) {
-                // we zoeken het beginpunt die het verst in tijd gelegen: van othermove OF van thismove
-                //rico en offset is van de move die we willen doen
-                double rico = furthestPrevious == previous ? ricoB : ricoA;
-                double offset = furthestPrevious == previous ? offsetB : offsetA;
-                //distance tussen move die we willen aanmaken en othermove
-                double distance = furthestPrevious.getX() - rico * furthestPrevious.getTime() - offset;
-                if (Math.abs(distance) >= safetyDistance) {
-                    //Alles in orde, we kunnen de volgende move checken
-                    continue;
-                } else {
-                    //TODO Collision detected
+        }
 
-                    // als currentOther move de laatste is van otherGantry, dan moeten we hieraan een move toevoegen
-                    // (aan de kant zetten, zodat deze gantry zijn move kan uitvoeren)
-                    if (otherGantryMoves.get(otherGantryMoves.size() - 1) == currentOther) {
-                        int xDestination = ricoA > 0 ? current.getX() + safetyDistance : current.getX() - safetyDistance;
-                        otherGantryMoves.add(new Move(currentOther.getGantry(), xDestination, currentOther.getY(), currentOther.getItemInCraneID(), 0, true));
+    }
 
-                        makeFeasible(g, previous, current);
+    public double calculateDelay(Move current, Move previous, Move currentOther, Move previousOther) {
+        //Deze boolean geeft aan als de "other" kraan op dit moment zich boven of onder this kraan bevindt
+        boolean otherAbove = previous.getX() < previousOther.getX();
 
-                    } else {
-                        // schuif de tijd op en probeer opnieuw (recursion bitch)
-                        // hoeveel tijd? => zoek het punt op de othermove die een x-waarde heeft van 20 meer dan
-                        // de previous move (x) van thisGantry (de gantry die de move wil uitvoeren)
-                        double timePlus = ((previous.getX() + safetyDistance) - offsetB) / ricoB;
-                        double timeMin = ((previous.getX() - safetyDistance) - offsetB) / ricoB;
+        double ricoA = (current.getX() - previous.getX()) / (current.getTime() - previous.getTime());
+        double offsetA = current.getX() - ricoA * current.getTime();
 
-                        double time = Math.max(timeMin, timePlus);
+        double ricoB = (currentOther.getX() - previousOther.getX()) / (currentOther.getTime() - previousOther.getTime());
+        double offsetB = currentOther.getX() - ricoB * currentOther.getTime();
 
-                        // ligt tijd tussen "nu" en einde van de othermove? => ja = goed, nee: tijd gelijk aan einde van othermove
-                        //Als ricoB 0 is dan snijden we het nooit
-                        double addedTime = time > furthestPrevious.getTime() && time < currentOther.getTime() && ricoB != 0? time - previous.getTime() : currentOther.getTime() - previous.getTime();
+        double tijdSnijpunt = (offsetB - offsetA) / (ricoA - ricoB);
 
-                        if(addedTime < 0){
-                            System.out.println("stop");
-                        }
-                        Move waiting = new Move(g, previous.getX(), previous.getY(), previous.getItemInCraneID(), addedTime, true);
-                        thisGantryMoves.add(waiting);
-                        Move updatedMove = new Move(current);
+        Move closestCurrent = current.getTime() < currentOther.getTime() ? current : currentOther;
+        Move furthestPrevious = previous.getTime() > previousOther.getTime() ? previous : previousOther;
 
+        //Evenwijdig aan elkaar
+        if(Double.isNaN(tijdSnijpunt)){
+            //Eigenschap van evenwijdigheid: de afstand blijft gelijk. Dus als het begin punt feasible is,
+            //dan blijven ze altijd met dezelfde afstand van elkaar gescheiden
+            return 0;
+        }
 
-                        makeFeasible(g, waiting, updatedMove);
-                    }
-
-                    break;
-
-
-                }
-
-            } else if (tijdSnijpunt > currentOther.getTime()) {
-                // controleer tweede punt (currentMove)
-                double rico = closestCurrent == current ? ricoB : ricoA;
-                double offset = closestCurrent == current ? offsetB : offsetA;
-                double distance = closestCurrent.getX() - rico * closestCurrent.getTime() - offset;
-                if (Math.abs(distance) >= safetyDistance) {
-                    continue;
-                } else {
-                    //TODO Collision detected
-
-                    if (otherGantryMoves.get(otherGantryMoves.size() - 1) == currentOther) {
-                        int xDestination = ricoA > 0 ? current.getX() + safetyDistance : current.getX() - safetyDistance;
-                        otherGantryMoves.add(new Move(currentOther.getGantry(), xDestination, currentOther.getY(), currentOther.getItemInCraneID(), 0, true));
-
-                        makeFeasible(g, previous, current);
-                    }
-                    // niet de laatste move
-                    else {
-                        //zoek de tijd waarbij distance van closestmove tot andere move > safety
-                        double addedTime = currentOther.getTime() - previous.getTime();
-                        if(addedTime < 0){
-                            System.out.println("stop");
-                        }
-
-                        Move waiting = new Move(g, previous.getX(), previous.getY(), previous.getItemInCraneID(), addedTime, true);
-                        thisGantryMoves.add(waiting);
-                        Move updatedMove = new Move(current);
-
-
-                        makeFeasible(g, waiting, updatedMove);
-
-                    }
-
-
-                    break;
-                }
+        //Snijpunt binnen de grenzen (closestCurrent en furthestPrevious)
+        else if (tijdSnijpunt > furthestPrevious.getTime() && tijdSnijpunt < closestCurrent.getTime()) {
+            double additionalTime;
+            if(otherAbove){
+                additionalTime = -(((currentOther.getX() - safetyDistance - offsetA) / ricoA)-currentOther.getTime());
             }
+            else{
+                additionalTime = -(((currentOther.getX() + safetyDistance - offsetA) / ricoA)-currentOther.getTime());
+            }
+            return additionalTime;
+        }
+
+        //Snijpunt voor de grenzen
+        else if (tijdSnijpunt < furthestPrevious.getTime()) {
+            //De 2 kranen bewegen weg van elkaar, geen probleem dus:
+            return 0;
 
         }
 
+        //Snijpunt na de grenzen
+        else if (tijdSnijpunt > closestCurrent.getTime()) {
+            double rico = closestCurrent == current ? ricoB : ricoA;
+            double offset = closestCurrent == current ? offsetB : offsetA;
+            double distance = Math.abs(closestCurrent.getX() - rico * closestCurrent.getTime() - offset);
+
+            if(distance < safetyDistance){
+                //Als dit de laatste move is van de andere kraan:
+                double additionalTime;
+                if(otherAbove){
+                    additionalTime = -(((currentOther.getX() - safetyDistance - offsetA) / ricoA)-currentOther.getTime());
+                }
+                else{
+                    additionalTime = -(((currentOther.getX() + safetyDistance - offsetA) / ricoA)-currentOther.getTime());
+                }
+                return additionalTime;
+            }
+            return 0;
+        }
+
+        //zou normaal niet mogen voorkomen
+        return -1;
     }
 }
