@@ -146,26 +146,34 @@ public class MoveGenerator {
                 tijdSnijpunt = 0;
             } else tijdSnijpunt = (offsetB - offsetA) / (ricoA - ricoB);
 
+            Move closestCurrent = current.getTime() < currentOther.getTime() ? current : currentOther;
+            Move furthestPrevious = previous.getTime() > previousOther.getTime() ? previous : previousOther;
             //snijpunt ligt binnen de grenzen van other move
-            if (tijdSnijpunt > previousOther.getTime() && tijdSnijpunt < currentOther.getTime()) {
+            if (tijdSnijpunt > furthestPrevious.getTime() && tijdSnijpunt < closestCurrent.getTime()) {
                 // TODO Collision detected
 
                 // zoek punt vanaf collision tot einde van currentother waar distance > safety, en anders gewoon op current other
                 double timePlus = ((previous.getX() + safetyDistance) - offsetB) / ricoB;
                 double timeMin = ((previous.getX() - safetyDistance) - offsetB) / ricoB;
 
-                Move closestCurrent = current.getTime() < currentOther.getTime() ? current : currentOther;
                 double time = Math.max(timeMin, timePlus);
 
-                double addedTime = time < closestCurrent.getTime() ? time - previous.getTime() : currentOther.getTime() - previous.getTime();
-                thisGantryMoves.add(new Move(g, previous.getX(), previous.getY(), previous.getItemInCraneID(), addedTime, true));
+                //Als ricoB 0 is dan snijden we het nooit
+                double addedTime = time < closestCurrent.getTime() && ricoB != 0 ? time - previous.getTime() : currentOther.getTime() - previous.getTime();
+                if(addedTime < 0){
+                    System.out.println("stop");
+                }
 
+                Move waiting = new Move(g, previous.getX(), previous.getY(), previous.getItemInCraneID(), addedTime, true);
+                thisGantryMoves.add(waiting);
+                Move updatedMove = new Move(current);
+
+                makeFeasible(g, waiting, updatedMove);
 
             }
             // snijpunt valt voor grenzen van other move
             else if (tijdSnijpunt < previousOther.getTime()) {
                 // we zoeken het beginpunt die het verst in tijd gelegen: van othermove OF van thismove
-                Move furthestPrevious = previous.getTime() > previousOther.getTime() ? previous : previousOther;
                 //rico en offset is van de move die we willen doen
                 double rico = furthestPrevious == previous ? ricoB : ricoA;
                 double offset = furthestPrevious == previous ? offsetB : offsetA;
@@ -182,6 +190,9 @@ public class MoveGenerator {
                     if (otherGantryMoves.get(otherGantryMoves.size() - 1) == currentOther) {
                         int xDestination = ricoA > 0 ? current.getX() + safetyDistance : current.getX() - safetyDistance;
                         otherGantryMoves.add(new Move(currentOther.getGantry(), xDestination, currentOther.getY(), currentOther.getItemInCraneID(), 0, true));
+
+                        makeFeasible(g, previous, current);
+
                     } else {
                         // schuif de tijd op en probeer opnieuw (recursion bitch)
                         // hoeveel tijd? => zoek het punt op de othermove die een x-waarde heeft van 20 meer dan
@@ -192,13 +203,19 @@ public class MoveGenerator {
                         double time = Math.max(timeMin, timePlus);
 
                         // ligt tijd tussen "nu" en einde van de othermove? => ja = goed, nee: tijd gelijk aan einde van othermove
+                        //Als ricoB 0 is dan snijden we het nooit
+                        double addedTime = time > furthestPrevious.getTime() && time < currentOther.getTime() && ricoB != 0? time - previous.getTime() : currentOther.getTime() - previous.getTime();
 
-                        double addedTime = time > furthestPrevious.getTime() && time < currentOther.getTime() ? time - previous.getTime() : currentOther.getTime() - previous.getTime();
-                        thisGantryMoves.add(new Move(g, previous.getX(), previous.getY(), previous.getItemInCraneID(), addedTime, true));
+                        if(addedTime < 0){
+                            System.out.println("stop");
+                        }
+                        Move waiting = new Move(g, previous.getX(), previous.getY(), previous.getItemInCraneID(), addedTime, true);
+                        thisGantryMoves.add(waiting);
+                        Move updatedMove = new Move(current);
+
+
+                        makeFeasible(g, waiting, updatedMove);
                     }
-
-                    //recursie
-                    makeFeasible(g, previous, current);
 
                     break;
 
@@ -207,9 +224,8 @@ public class MoveGenerator {
 
             } else if (tijdSnijpunt > currentOther.getTime()) {
                 // controleer tweede punt (currentMove)
-                Move closestCurrent = current.getTime() < currentOther.getTime() ? current : currentOther;
-                double rico = closestCurrent == current ? ricoA : ricoB;
-                double offset = closestCurrent == current ? offsetA : offsetB;
+                double rico = closestCurrent == current ? ricoB : ricoA;
+                double offset = closestCurrent == current ? offsetB : offsetA;
                 double distance = closestCurrent.getX() - rico * closestCurrent.getTime() - offset;
                 if (Math.abs(distance) >= safetyDistance) {
                     continue;
@@ -219,15 +235,26 @@ public class MoveGenerator {
                     if (otherGantryMoves.get(otherGantryMoves.size() - 1) == currentOther) {
                         int xDestination = ricoA > 0 ? current.getX() + safetyDistance : current.getX() - safetyDistance;
                         otherGantryMoves.add(new Move(currentOther.getGantry(), xDestination, currentOther.getY(), currentOther.getItemInCraneID(), 0, true));
+
+                        makeFeasible(g, previous, current);
                     }
                     // niet de laatste move
                     else {
                         //zoek de tijd waarbij distance van closestmove tot andere move > safety
                         double addedTime = currentOther.getTime() - previous.getTime();
-                        thisGantryMoves.add(new Move(g, previous.getX(), previous.getY(), previous.getItemInCraneID(), addedTime, true));
+                        if(addedTime < 0){
+                            System.out.println("stop");
+                        }
+
+                        Move waiting = new Move(g, previous.getX(), previous.getY(), previous.getItemInCraneID(), addedTime, true);
+                        thisGantryMoves.add(waiting);
+                        Move updatedMove = new Move(current);
+
+
+                        makeFeasible(g, waiting, updatedMove);
+
                     }
 
-                    makeFeasible(g, previous, current);
 
                     break;
                 }
