@@ -87,12 +87,15 @@ public class MoveGenerator {
     public void makeFeasible(Gantry g, Move previous, Move current) {
         List<Move> otherGantryMoves;
         List<Move> thisGantryMoves;
+        Gantry otherGantry;
         if (g.getId() == 0) {
             otherGantryMoves = gantry1Moves;
             thisGantryMoves = gantry0Moves;
+            otherGantry= gantries.get(1);
         } else {
             otherGantryMoves = gantry0Moves;
             thisGantryMoves = gantry1Moves;
+            otherGantry = gantries.get(0);
         }
 
         // opvragen van alle moves die kraan 2 tussen deze tijdstippen doet
@@ -112,7 +115,7 @@ public class MoveGenerator {
                     lastMoveInRange = otherGantryMoves.indexOf(move);
                 }
             }
-            if(move.getTime() >= beginTime && move.getTime() <= endTime) {
+            if(firstMoveFound && move.getTime() <= endTime) {
                 lastMoveInRange = otherGantryMoves.indexOf(move);
             }
         }
@@ -124,6 +127,30 @@ public class MoveGenerator {
 
             overlappingMoves.addAll(otherGantryMoves.subList(indexOfFirstMove, indexOfLastMove));
 
+        }
+        else if(firstMoveInRange==-1 && lastMoveInRange == -1){
+            if(g.getId()==0){
+                if((otherGantry.getX()-current.getX())>=Problem.safetyDistance) {
+                    if (otherGantry.getInGantry() == null) {
+                        otherGantryMoves.add(new Move(otherGantry, otherGantry.getX(), otherGantry.getY(), null, endTime - otherGantry.getTime(), true));
+                    } else {
+                        otherGantryMoves.add(new Move(otherGantry, otherGantry.getX(), otherGantry.getY(), otherGantry.getInGantry().getId(), endTime - otherGantry.getTime(), true));
+                    }
+                }
+            }
+            else{
+                if((current.getX()-otherGantry.getX())>=Problem.safetyDistance) {
+                    if (otherGantry.getInGantry() == null) {
+                        otherGantryMoves.add(new Move(otherGantry, otherGantry.getX(), otherGantry.getY(), null, endTime - otherGantry.getTime(), true));
+                    } else {
+                        otherGantryMoves.add(new Move(otherGantry, otherGantry.getX(), otherGantry.getY(), otherGantry.getInGantry().getId(), endTime - otherGantry.getTime(), true));
+                    }
+                }
+            }
+
+
+            int indexOfFirstMove= otherGantryMoves.size()-1;
+            overlappingMoves.addAll(otherGantryMoves.subList(indexOfFirstMove-1, indexOfFirstMove+1));
         }
         // We zoeken snijpunt tussen moves van other gantry en current gantry die move wil uitvoeren
         //  (x2 - x1)
@@ -198,14 +225,14 @@ public class MoveGenerator {
         }
 
         //Snijpunt voor de grenzen
-        else if (tijdSnijpunt < furthestPrevious.getTime()) {
+        else if (tijdSnijpunt <= furthestPrevious.getTime()) {
             //De 2 kranen bewegen weg van elkaar, geen probleem dus:
             return 0;
 
         }
 
         //Snijpunt na de grenzen
-        else if (tijdSnijpunt > closestCurrent.getTime()) {
+        else if (tijdSnijpunt >= closestCurrent.getTime()) {
             double rico = closestCurrent == current ? ricoB : ricoA;
             double offset = closestCurrent == current ? offsetB : offsetA;
             double distance = Math.abs(closestCurrent.getX() - rico * closestCurrent.getTime() - offset);

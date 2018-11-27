@@ -9,6 +9,9 @@ import javafx.scene.chart.XYChart;
 import javafx.scene.control.Button;
 import javafx.scene.control.TextField;
 
+import static be.kul.gantry.domain.Problem.gantries;
+import static be.kul.gantry.domain.Problem.safetyDistance;
+
 
 public class GraphController {
 
@@ -71,10 +74,10 @@ public class GraphController {
                 if (m.getGantry().getId() == 1) {
                     gantry1.getData().add(new XYChart.Data(m.getTime(), m.getX()));
                 }
-
-                System.out.println("lower " +xaxis.getLowerBound());
-                System.out.println("upper " +xaxis.getUpperBound());
-
+                if(Math.abs(gantries.get(0).getX()-gantries.get(1).getX())<safetyDistance){
+                    System.out.println("OWOWOW kik ier minder dan de safetyDistance e broer");
+                }
+                System.out.println(Math.abs(gantries.get(0).getX()-gantries.get(1).getX()));
                 double minDiff= Math.abs(xaxis.getLowerBound()- m.getTime());
                 double maxDiff= Math.abs(xaxis.getUpperBound()-m.getTime());
                 if(m.getTime()<xaxis.getLowerBound()+200){
