@@ -35,6 +35,7 @@ public class Problem {
     private HashMap<Integer, HashMap<Integer, Slot>> bottomSlots;
     private HashMap<Integer, Slot> itemSlotMap;
     private List<Integer> filledLevelList;
+    private Random r = new Random(0);
 
     public Problem(int minX, int maxX, int minY, int maxY, int maxLevels, List<Item> items, List<Job> inputJobSequence, List<Job> outputJobSequence, List<Gantry> gantries, List<Slot> slots, int safetyDistance, int pickupPlaceDuration, HashMap<Integer, HashMap<Integer, Slot>> bottomSlots, HashMap<Integer, Slot> itemSlotMap) {
         this.minX = minX;
@@ -549,18 +550,21 @@ public class Problem {
 
     public List<Move> solve()
     {
+        // dit is de lijst die we uiteindelijk zullen returnen
         List<Move> moves = new ArrayList<>();
+
         //Linkedlist maken van inputJobSequence om gemakkelijk jobs er te kunnen uithalen (removeFirst en getFirst())
         LinkedList<Job> inputJobSequenceCopy = new LinkedList<>(inputJobSequence);
 
         //We beginnen met het uitvoeren van de outputjobs
         for(Job j_out: outputJobSequence){
+            // hier zoeken we het slot die bij het eerste 'outputitem' behoort
             Slot s = itemSlotMap.get(j_out.getItem().getId());
 
-            //Als we het item nog niet kunnen vinden wordt eerst een deel van de inputsequence afgewerkt.
+            //zolang het item s niet in de yard aanwezig is voeren we inputJobs uit
             while(s == null){
                 Job j_in = inputJobSequenceCopy.getFirst();
-                //We gaan opzoek naar de rij met de laagste "vulniveau" (volledig gevuld niveau)
+                //We gaan opzoek naar de rij met het laagste "vulniveau" (volledig gevuld niveau)
                 int lowestHeight = -1;
                 for(int j : filledLevelList){
                     if(j > lowestHeight){
@@ -575,6 +579,8 @@ public class Problem {
 
                 //Het item effectief verplaatsen door de moves te berekenen en de data aan te passen
                 j_in.getPickup().getSlot().setItem(j_in.getItem());
+
+                // effectief de move uitvoeren en toekennen aan een kraan, in de movegenerator wordt feasibility gegarandeerd
                 moves.addAll(MoveGenerator.getInstance().createMoves(gantries.get(0),j_in.getPickup().getSlot(), destination));
                 updateData(j_in.getPickup().getSlot(), destination, 1);
 
@@ -584,7 +590,7 @@ public class Problem {
                 //Opnieuw zoeken voor het Slot van de outputjob
                 s = itemSlotMap.get(j_out.getItem().getId());
             }
-            //TODO: tijd van gantry 1 doorspoelen tot het moment dat het item in de yard staat
+
             //Als het item dat verwijderd moet worden parents heeft met items moeten deze eerst verplaatst worden;
             if(s.getParents().get(0) != null && s.getParents().get(0).getItem() != null){
                 moves.addAll(clearTop(s.getParents().get(0), gantries.get(1)));
@@ -639,7 +645,7 @@ public class Problem {
         Slot newLocation = null;
         int magnitude = 1;
         //We kiezen willekeurig een richting om in te zoeken (vooruit of achteruit);
-        int direction = Math.random() < 0.5 ? -1 : 1;
+        int direction = r.nextInt(2) < 0.5 ? -1 : 1;
 
         while(newLocation == null){
             int offset = magnitude * direction;
@@ -657,7 +663,7 @@ public class Problem {
             magnitude += 1;
         }
 
-        //Item effectief verplaatsen
+        //Bovenstaande containers uitgraven is voltooid, nu kunnen we het gewenste item effectief verplaatsen
         moves.addAll(MoveGenerator.getInstance().createMoves(g, s, newLocation));
         //Slots en hashmap updaten
         updateData(s, newLocation, 0);

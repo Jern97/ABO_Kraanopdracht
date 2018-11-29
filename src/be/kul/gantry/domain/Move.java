@@ -28,11 +28,11 @@ public class Move {
             gantry.setY(y);
 
             MoveListener.getInstance().getGraphDriver().addMove(this);
-            try {
-                sleep(100);
+            /*try {
+                sleep(500);
             } catch (InterruptedException e) {
                 e.printStackTrace();
-            }
+            }*/
         }
     }
 

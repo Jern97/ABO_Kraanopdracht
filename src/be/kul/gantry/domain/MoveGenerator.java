@@ -5,6 +5,10 @@ import java.util.List;
 
 import static be.kul.gantry.domain.Problem.pickupPlaceDuration;
 
+/**
+ * in de MoveGenerator wordt voor elk van de kranen een lijst van moves bijgehouden
+ * de makeFeasible methode baseert zich hierop om moves mogelijk te maken
+ */
 public class MoveGenerator {
 
     private static MoveGenerator moveGenerator = new MoveGenerator();
@@ -18,6 +22,8 @@ public class MoveGenerator {
         gantry1Moves = new ArrayList<>();
         Gantry gantry0 = Problem.gantries.get(0);
         Gantry gantry1 = Problem.gantries.get(1);
+
+        // we maken voor elke kraan 2 dummy moves om de makeFeasible te laten werken voor de eerste moves
         gantry0Moves.add(new Move(gantry0, gantry0.getX(), gantry0.getY(), null, -1, false));
         gantry0Moves.add(new Move(gantry0, gantry0.getX(), gantry0.getY(), null, 0, false));
         gantry1Moves.add(new Move(gantry1, gantry1.getX(), gantry1.getY(), null, -1, false));
@@ -40,9 +46,10 @@ public class MoveGenerator {
 
     public List<Move> createMoves(Gantry g, Slot pickup, Slot delivery) {
 
+        // dit is de lijst van moves die nodig is om met gantry g het item in slot "pickup" naar slot "delivery" te brengen
         List<Move> moves = new ArrayList<>();
-        //Een basis sequentie van moves bestaat uit 4 verschillende moves:
-        List<Move> otherGantryMoves;
+
+        // extra info over de kranen
         List<Move> thisGantryMoves;
         if (g.getId() == 0) {
             thisGantryMoves = gantry0Moves;
@@ -50,7 +57,7 @@ public class MoveGenerator {
             thisGantryMoves = gantry1Moves;
         }
 
-
+        //Een basis sequentie van moves bestaat uit 4 verschillende moves:
         Move naarItem = new Move(g, pickup.getCenterX(), pickup.getCenterY(), null, 0, false);
         makeFeasible(g, thisGantryMoves.get(thisGantryMoves.size() - 1), naarItem);
         naarItem = new Move(g, pickup.getCenterX(), pickup.getCenterY(), null, 0, true);
@@ -85,6 +92,7 @@ public class MoveGenerator {
      * @param current  move die we willen mogelijk maken
      */
     public void makeFeasible(Gantry g, Move previous, Move current) {
+        // basis informatie over gantries
         List<Move> otherGantryMoves;
         List<Move> thisGantryMoves;
         Gantry otherGantry;
@@ -108,6 +116,7 @@ public class MoveGenerator {
         boolean firstMoveFound = false;
 
         for (Move move : otherGantryMoves) {
+            // vanaf er een move gevonden is die verder in tijd is gelegen dan de begintijd is de eerste move geinitialiseerd
             if(move.getTime() >= beginTime){
                 if (!firstMoveFound) {
                     firstMoveFound = true;
@@ -115,43 +124,24 @@ public class MoveGenerator {
                     lastMoveInRange = otherGantryMoves.indexOf(move);
                 }
             }
+            // als de eerste move gevonden is, gaan we verder in de for loop, en zal de laatste move upgedate worden tot
+            // de move uit de lijst van de other Gantry verder ligt dan de eindtijd
             if(firstMoveFound && move.getTime() <= endTime) {
                 lastMoveInRange = otherGantryMoves.indexOf(move);
             }
         }
-        //Indien er wel moves overlappen:
+        //Indien er moves overlappen:
         if(firstMoveInRange != -1 && lastMoveInRange != -1) {
 
+            // Voor de eerste move nemen we 1 move vroeger dan de bekomen index hierboven aangezien we het verloop van de move willen kennen
+            // Voor de laatste move willen we een verder nemen (+2 omdat sublist upper bound exlusive is)
             int indexOfFirstMove = firstMoveInRange > 0 ? firstMoveInRange - 1 : 0;
             int indexOfLastMove = lastMoveInRange < otherGantryMoves.size() - 1 ? lastMoveInRange + 2 : otherGantryMoves.size();
 
             overlappingMoves.addAll(otherGantryMoves.subList(indexOfFirstMove, indexOfLastMove));
 
         }
-        else if(firstMoveInRange==-1 && lastMoveInRange == -1){
-            if(g.getId()==0){
-                if((otherGantry.getX()-current.getX())>=Problem.safetyDistance) {
-                    if (otherGantry.getInGantry() == null) {
-                        otherGantryMoves.add(new Move(otherGantry, otherGantry.getX(), otherGantry.getY(), null, endTime - otherGantry.getTime(), true));
-                    } else {
-                        otherGantryMoves.add(new Move(otherGantry, otherGantry.getX(), otherGantry.getY(), otherGantry.getInGantry().getId(), endTime - otherGantry.getTime(), true));
-                    }
-                }
-            }
-            else{
-                if((current.getX()-otherGantry.getX())>=Problem.safetyDistance) {
-                    if (otherGantry.getInGantry() == null) {
-                        otherGantryMoves.add(new Move(otherGantry, otherGantry.getX(), otherGantry.getY(), null, endTime - otherGantry.getTime(), true));
-                    } else {
-                        otherGantryMoves.add(new Move(otherGantry, otherGantry.getX(), otherGantry.getY(), otherGantry.getInGantry().getId(), endTime - otherGantry.getTime(), true));
-                    }
-                }
-            }
 
-
-            int indexOfFirstMove= otherGantryMoves.size()-1;
-            overlappingMoves.addAll(otherGantryMoves.subList(indexOfFirstMove-1, indexOfFirstMove+1));
-        }
         // We zoeken snijpunt tussen moves van other gantry en current gantry die move wil uitvoeren
         //  (x2 - x1)
         //  -------- * t + offset = x
