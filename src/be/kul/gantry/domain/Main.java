@@ -13,6 +13,7 @@ import javafx.stage.Stage;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
+import java.util.ArrayList;
 import java.util.List;
 
 import static java.lang.Thread.sleep;
@@ -26,7 +27,7 @@ public class Main {
         OUTPUT_FILE = args[1];
         MoveListener test= MoveListener.getInstance();
         try {
-            sleep(3000);
+            sleep(0);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
@@ -46,7 +47,7 @@ public class Main {
                     BufferedWriter writer = new BufferedWriter(new FileWriter(OUTPUT_FILE));
                     writer.write("\"gID\";\"T\";\"x\";\"y\";\"itemsInCraneID\"");
 
-                    List<Move> moves = problem.solve();
+                    problem.solve();
 
                     System.out.println("########## GANTRY0");
                     for (Move m : MoveGenerator.getInstance().gantry0Moves) {
@@ -57,10 +58,16 @@ public class Main {
                         System.out.println(m);
                     }
 
-                    for (Move m : moves) {
+                    for (Move m : MoveGenerator.getInstance().gantry0Moves) {
                         writer.write("\n");
                         writer.write(m.toString());
                     }
+
+                    for (Move m : MoveGenerator.getInstance().gantry1Moves) {
+                        writer.write("\n");
+                        writer.write(m.toString());
+                    }
+
                     writer.close();
                     //System.out.println(System.currentTimeMillis() - startTime);
                 } catch (Exception e) {

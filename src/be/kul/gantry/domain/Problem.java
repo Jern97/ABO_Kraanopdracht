@@ -548,10 +548,9 @@ public class Problem {
      * @return een list van moves die nodig zijn om alle jobs af te werken
      */
 
-    public List<Move> solve()
+    public void solve()
     {
         // dit is de lijst die we uiteindelijk zullen returnen
-        List<Move> moves = new ArrayList<>();
 
         LinkedList<Job> inputJobSequenceCopy= new LinkedList<>(inputJobSequence);
         LinkedList<Job> outputJobSequenceCopy= new LinkedList<>(outputJobSequence);
@@ -592,14 +591,8 @@ public class Problem {
                 // zal niet lukken als tijd van kraan < Item timestamp
                 if(currentGantry.getTime()<jobToExecute.getItem().getTimestamp() || s==null){
                     // maak wacht move voor gantry tot time van andere kraan
-                    Move waiting = null;
-                    if(currentGantry.getInGantry()!=null) {
-                        waiting = new Move(currentGantry, currentGantry.getX(), currentGantry.getY(), currentGantry.getInGantry().getId(), otherGantry.getTime() - currentGantry.getTime(), true);
-                    }
-                    else{
-                        waiting = new Move(currentGantry, currentGantry.getX(), currentGantry.getY(), null, otherGantry.getTime() - currentGantry.getTime()+5, true);
-                    }
-                    moves.add(waiting);
+                    MoveGenerator.getInstance().pauseGantry(currentGantry,otherGantry.getTime() - currentGantry.getTime()+5);
+
 
                     // tijd zal gelijk staan dus wissel hier al van kranen
                     // we zitten bij output dus current = 1
@@ -610,14 +603,14 @@ public class Problem {
                     // doe effectief de outputJob
                     //Als het item dat verwijderd moet worden parents heeft met items moeten deze eerst verplaatst worden;
                     if(s.getParents().get(0) != null && s.getParents().get(0).getItem() != null){
-                        moves.addAll(clearTop(s.getParents().get(0), currentGantry));
+                        clearTop(s.getParents().get(0), currentGantry);
                     }
                     if(s.getParents().get(1) != null && s.getParents().get(1).getItem() != null){
-                        moves.addAll(clearTop(s.getParents().get(1), currentGantry));
+                        clearTop(s.getParents().get(1), currentGantry);
                     }
 
                     //Het item effectief verplaatsen door de moves te berekenen en de data aan te passen
-                    moves.addAll(MoveGenerator.getInstance().createMoves(currentGantry, s, jobToExecute.getPlace().getSlot()));
+                    MoveGenerator.getInstance().createMoves(currentGantry, s, jobToExecute.getPlace().getSlot());
                     updateData(s, jobToExecute.getPlace().getSlot(), -1);
 
                     currentJobSequence.removeFirst();
@@ -643,7 +636,7 @@ public class Problem {
                 jobToExecute.getPickup().getSlot().setItem(jobToExecute.getItem());
 
                 // effectief de move uitvoeren en toekennen aan een kraan, in de movegenerator wordt feasibility gegarandeerd
-                moves.addAll(MoveGenerator.getInstance().createMoves(currentGantry,jobToExecute.getPickup().getSlot(), destination));
+                MoveGenerator.getInstance().createMoves(currentGantry,jobToExecute.getPickup().getSlot(), destination);
                 updateData(jobToExecute.getPickup().getSlot(), destination, 1);
 
                 //De job uit de lijst verwijderen
@@ -651,92 +644,10 @@ public class Problem {
 
 
             }
+            if(inputJobSequenceCopy.isEmpty()) MoveGenerator.getInstance().retireGantry(gantry0);
+            if(outputJobSequenceCopy.isEmpty()) MoveGenerator.getInstance().retireGantry(gantry1);
         }
 
-        return moves;
-    }
-    /**
-     * Deze methode lost het probleem op door eerst de beginnen met de outputjobs af te werken.
-     * Als een item die nodig is voor een outputjob nog niet aanwezig is in de opslagplaats
-     * dan zullen eerst x aantal inputjobs worden afgewerkt, totdat het benodigde item zich in
-     * de opslagplaats bevindt.
-     * Daarna worden de overige inputjobs afgewerkt.
-     * @return een list van moves die nodig zijn om alle jobs af te werken
-     */
-
-    public List<Move> solveOld()
-    {
-        // dit is de lijst die we uiteindelijk zullen returnen
-        List<Move> moves = new ArrayList<>();
-
-        //Linkedlist maken van inputJobSequence om gemakkelijk jobs er te kunnen uithalen (removeFirst en getFirst())
-        LinkedList<Job> inputJobSequenceCopy = new LinkedList<>(inputJobSequence);
-
-        //We beginnen met het uitvoeren van de outputjobs
-        for(Job j_out: outputJobSequence){
-            // hier zoeken we het slot die bij het eerste 'outputitem' behoort
-            Slot s = itemSlotMap.get(j_out.getItem().getId());
-
-            //zolang het item s niet in de yard aanwezig is voeren we inputJobs uit
-            while(s == null){
-                Job j_in = inputJobSequenceCopy.getFirst();
-                //We gaan opzoek naar de rij met het laagste "vulniveau" (volledig gevuld niveau)
-                int lowestHeight = -1;
-                for(int j : filledLevelList){
-                    if(j > lowestHeight){
-                        lowestHeight = j;
-                    }
-                }
-                //Eerste rij zoeken die de laagste vulniveau heeft, deze is het dichtst bij de kraan
-                int lowestRow = filledLevelList.indexOf(lowestHeight);
-
-                //In deze rij wordt een vrije plaats gezocht voor het item
-                Slot destination = searchViableSlot(new ArrayList<>(bottomSlots.get(lowestRow).values()), 0);
-
-                //Het item effectief verplaatsen door de moves te berekenen en de data aan te passen
-                j_in.getPickup().getSlot().setItem(j_in.getItem());
-
-                // effectief de move uitvoeren en toekennen aan een kraan, in de movegenerator wordt feasibility gegarandeerd
-                moves.addAll(MoveGenerator.getInstance().createMoves(gantries.get(0),j_in.getPickup().getSlot(), destination));
-                updateData(j_in.getPickup().getSlot(), destination, 1);
-
-                //De job uit de lijst verwijderen
-                inputJobSequenceCopy.removeFirst();
-
-                //Opnieuw zoeken voor het Slot van de outputjob
-                s = itemSlotMap.get(j_out.getItem().getId());
-            }
-
-            //Als het item dat verwijderd moet worden parents heeft met items moeten deze eerst verplaatst worden;
-            if(s.getParents().get(0) != null && s.getParents().get(0).getItem() != null){
-                moves.addAll(clearTop(s.getParents().get(0), gantries.get(1)));
-            }
-            if(s.getParents().get(1) != null && s.getParents().get(1).getItem() != null){
-                moves.addAll(clearTop(s.getParents().get(1), gantries.get(1)));
-            }
-
-            //Het item effectief verplaatsen door de moves te berekenen en de data aan te passen
-            moves.addAll(MoveGenerator.getInstance().createMoves(gantries.get(1), s, j_out.getPlace().getSlot()));
-            updateData(s, j_out.getPlace().getSlot(), -1);
-        }
-
-        //Als alle outputsjobs klaar zijn werken we de overige input jobs af
-        for (Job j_in: inputJobSequenceCopy){
-            int lowestHeight = -1;
-            for(int j : filledLevelList){
-                if(j > lowestHeight){
-                    lowestHeight = j;
-                }
-            }
-            int lowestRow = filledLevelList.indexOf(lowestHeight);
-            Slot destination = searchViableSlot(new ArrayList<>(bottomSlots.get(lowestRow).values()),0);
-
-            //Het item effectief verplaatsen door de moves te berekenen en de data aan te passen
-            j_in.getPickup().getSlot().setItem(j_in.getItem());
-            moves.addAll(MoveGenerator.getInstance().createMoves(gantries.get(0),j_in.getPickup().getSlot(), destination));
-            updateData(j_in.getPickup().getSlot(), destination, 1);
-        }
-        return moves;
     }
 
     /**
@@ -746,15 +657,15 @@ public class Problem {
      * @return een list van moves die nodig zijn voor de actie
      */
 
-    public List<Move> clearTop(Slot s, Gantry g){
-        List<Move> moves = new ArrayList<>();
+    public void clearTop(Slot s, Gantry g){
+
 
         //Recursief naar boven gaan in de stapel, deze moeten eerst verplaatst worden
         if(s.getParents().get(0) != null && s.getParents().get(0).getItem() != null){
-            moves.addAll(clearTop(s.getParents().get(0), g));
+            clearTop(s.getParents().get(0), g);
         }
         if(s.getParents().get(1) != null && s.getParents().get(1).getItem() != null){
-            moves.addAll(clearTop(s.getParents().get(1), g));
+            clearTop(s.getParents().get(1), g);
         }
 
         //Nieuwe locatie zoeken voor item (in een zo dicht mogelijke rij)
@@ -780,11 +691,10 @@ public class Problem {
         }
 
         //Bovenstaande containers uitgraven is voltooid, nu kunnen we het gewenste item effectief verplaatsen
-        moves.addAll(MoveGenerator.getInstance().createMoves(g, s, newLocation));
+        MoveGenerator.getInstance().createMoves(g, s, newLocation);
         //Slots en hashmap updaten
         updateData(s, newLocation, 0);
 
-        return moves;
     }
 
     /**

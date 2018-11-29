@@ -44,10 +44,9 @@ public class MoveGenerator {
      * @return een set van moves die nodig zijn om deze actie uit te voeren
      */
 
-    public List<Move> createMoves(Gantry g, Slot pickup, Slot delivery) {
+    public void createMoves(Gantry g, Slot pickup, Slot delivery) {
 
         // dit is de lijst van moves die nodig is om met gantry g het item in slot "pickup" naar slot "delivery" te brengen
-        List<Move> moves = new ArrayList<>();
 
         // extra info over de kranen
         List<Move> thisGantryMoves;
@@ -61,31 +60,27 @@ public class MoveGenerator {
         Move naarItem = new Move(g, pickup.getCenterX(), pickup.getCenterY(), null, 0, false);
         makeFeasible(g, thisGantryMoves.get(thisGantryMoves.size() - 1), naarItem);
         naarItem = new Move(g, pickup.getCenterX(), pickup.getCenterY(), null, 0, true);
-        moves.add(naarItem);
         thisGantryMoves.add(naarItem);
 
         Move oppikkenItem = new Move(g, g.getX(), g.getY(), pickup.getItem().getId(), pickupPlaceDuration, false);
         makeFeasible(g, thisGantryMoves.get(thisGantryMoves.size() - 1), oppikkenItem);
         oppikkenItem = new Move(g, g.getX(), g.getY(), pickup.getItem().getId(), pickupPlaceDuration, true);
-        moves.add(oppikkenItem);
         thisGantryMoves.add(oppikkenItem);
 
 
         Move vervoerItem = new Move(g, delivery.getCenterX(), delivery.getCenterY(), pickup.getItem().getId(), 0, false);
         makeFeasible(g, thisGantryMoves.get(thisGantryMoves.size() - 1), vervoerItem);
         vervoerItem = new Move(g, delivery.getCenterX(), delivery.getCenterY(), pickup.getItem().getId(), 0, true);
-        moves.add(vervoerItem);
         thisGantryMoves.add(vervoerItem);
 
         Move dropItem = new Move(g, g.getX(), g.getY(), null, pickupPlaceDuration, false);
         makeFeasible(g, thisGantryMoves.get(thisGantryMoves.size() - 1), dropItem);
         dropItem = new Move(g, g.getX(), g.getY(), null, pickupPlaceDuration, true);
-        moves.add(dropItem);
         thisGantryMoves.add(dropItem);
+
         pickup.getItem().setTimestamp(g.getTime());
 
 
-        return moves;
     }
 
     /**
@@ -114,6 +109,9 @@ public class MoveGenerator {
         // opvragen van alle moves die kraan 2 tussen deze tijdstippen doet
 
         List<Move> overlappingMoves = getOverlappingMoves(otherGantry, previous.getTime(), current.getTime());
+        if(g.getId() == 1 && overlappingMoves.isEmpty()){
+            System.out.println("stop");
+        }
         // We zoeken snijpunt tussen moves van other gantry en current gantry die move wil uitvoeren
         //  (x2 - x1)
         //  -------- * t + offset = x
@@ -309,5 +307,27 @@ public class MoveGenerator {
 
         //zou normaal niet mogen voorkomen
         return -1;
+    }
+
+    public void retireGantry(Gantry g){
+        if(g.getId() == 0){
+            Move backToBase = new Move(g, -20, gantry0Moves.get(gantry0Moves.size()-1).getY(), null, 0, true);
+            gantry0Moves.add(backToBase);
+        }
+        else {
+            Move backToBase = new Move(g, 1020, gantry1Moves.get(gantry1Moves.size()-1).getY(), null, 0, true);
+            gantry1Moves.add(backToBase);
+        }
+    }
+
+    public void pauseGantry(Gantry g, double additionalTime){
+        if(g.getId() == 0){
+            gantry0Moves.add(new Move(g, g.getX(), g.getY(), gantry0Moves.get(gantry0Moves.size()-1).getItemInCraneID(), additionalTime, true));
+
+        }
+        else{
+            gantry1Moves.add(new Move(g, g.getX(), g.getY(), gantry1Moves.get(gantry1Moves.size()-1).getItemInCraneID(), additionalTime, true));
+        }
+
     }
 }
