@@ -236,6 +236,7 @@ public class MoveGenerator {
 
         }
 
+
         return overlappingMoves;
     }
 

@@ -568,21 +568,24 @@ public class Problem {
         Gantry otherGantry= gantry0;
         LinkedList<Job> otherJobSequence= inputJobSequenceCopy;
 
-        while(inputJobSequenceCopy.size()>0 && outputJobSequenceCopy.size()>0){
+        while(inputJobSequenceCopy.size()>0 || outputJobSequenceCopy.size()>0){
             // vraag current en other gantry op
-            if(gantry0.getTime()<gantry1.getTime() || outputJobSequenceCopy.isEmpty()){
+            if((gantry0.getTime()<gantry1.getTime() || outputJobSequenceCopy.isEmpty() )&& !inputJobSequenceCopy.isEmpty()){
                 currentGantry=gantry0;
                 otherGantry=gantry1;
                 currentJobSequence=inputJobSequenceCopy;
             }
-            else if (gantry0.getTime()>gantry1.getTime() || inputJobSequenceCopy.isEmpty()){
+            else if ((gantry0.getTime()>gantry1.getTime() || inputJobSequenceCopy.isEmpty()) && !outputJobSequenceCopy.isEmpty()){
                 currentGantry=gantry1;
                 otherGantry=gantry0;
                 currentJobSequence=outputJobSequenceCopy;
             }
 
 
-            Job jobToExecute=currentJobSequence.getFirst();
+            if(currentJobSequence.isEmpty()){
+                System.out.println("stop");
+            }
+            Job jobToExecute=currentJobSequence.get(0);
             if(currentJobSequence==outputJobSequenceCopy){
                 // probeer outputJob
                 Slot s= itemSlotMap.get(jobToExecute.getItem().getId());
