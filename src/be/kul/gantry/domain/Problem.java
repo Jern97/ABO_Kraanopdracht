@@ -8,6 +8,7 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
+import sun.awt.image.ImageWatched;
 
 import java.io.File;
 import java.io.FileReader;
@@ -538,7 +539,6 @@ public class Problem {
         }
 
     }
-
     /**
      * Deze methode lost het probleem op door eerst de beginnen met de outputjobs af te werken.
      * Als een item die nodig is voor een outputjob nog niet aanwezig is in de opslagplaats
@@ -549,6 +549,119 @@ public class Problem {
      */
 
     public List<Move> solve()
+    {
+        // dit is de lijst die we uiteindelijk zullen returnen
+        List<Move> moves = new ArrayList<>();
+
+        LinkedList<Job> inputJobSequenceCopy= new LinkedList<>(inputJobSequence);
+        LinkedList<Job> outputJobSequenceCopy= new LinkedList<>(outputJobSequence);
+
+        // kan aan input
+        Gantry gantry0= gantries.get(0);
+        // kan aan output
+        Gantry gantry1= gantries.get(1);
+
+
+        Gantry currentGantry=gantry1;
+        LinkedList<Job> currentJobSequence= outputJobSequenceCopy;
+
+        Gantry otherGantry= gantry0;
+        LinkedList<Job> otherJobSequence= inputJobSequenceCopy;
+
+        while(inputJobSequenceCopy.size()>0 && outputJobSequenceCopy.size()>0){
+            // vraag current en other gantry op
+            if(gantry0.getTime()<gantry1.getTime() || outputJobSequenceCopy.isEmpty()){
+                currentGantry=gantry0;
+                otherGantry=gantry1;
+                currentJobSequence=inputJobSequenceCopy;
+            }
+            else if (gantry0.getTime()>gantry1.getTime() || inputJobSequenceCopy.isEmpty()){
+                currentGantry=gantry1;
+                otherGantry=gantry0;
+                currentJobSequence=outputJobSequenceCopy;
+            }
+
+
+            Job jobToExecute=currentJobSequence.getFirst();
+            if(currentJobSequence==outputJobSequenceCopy){
+                // probeer outputJob
+                Slot s= itemSlotMap.get(jobToExecute.getItem().getId());
+                // zal niet lukken als tijd van kraan < Item timestamp
+                if(currentGantry.getTime()<jobToExecute.getItem().getTimestamp() || s==null){
+                    // maak wacht move voor gantry tot time van andere kraan
+                    Move waiting = null;
+                    if(currentGantry.getInGantry()!=null) {
+                        waiting = new Move(currentGantry, currentGantry.getX(), currentGantry.getY(), currentGantry.getInGantry().getId(), otherGantry.getTime() - currentGantry.getTime(), true);
+                    }
+                    else{
+                        waiting = new Move(currentGantry, currentGantry.getX(), currentGantry.getY(), null, otherGantry.getTime() - currentGantry.getTime()+5, true);
+                    }
+                    moves.add(waiting);
+
+                    // tijd zal gelijk staan dus wissel hier al van kranen
+                    // we zitten bij output dus current = 1
+                    /*currentGantry=gantry0;
+                    otherGantry=gantry1;*/
+                }
+                else{
+                    // doe effectief de outputJob
+                    //Als het item dat verwijderd moet worden parents heeft met items moeten deze eerst verplaatst worden;
+                    if(s.getParents().get(0) != null && s.getParents().get(0).getItem() != null){
+                        moves.addAll(clearTop(s.getParents().get(0), currentGantry));
+                    }
+                    if(s.getParents().get(1) != null && s.getParents().get(1).getItem() != null){
+                        moves.addAll(clearTop(s.getParents().get(1), currentGantry));
+                    }
+
+                    //Het item effectief verplaatsen door de moves te berekenen en de data aan te passen
+                    moves.addAll(MoveGenerator.getInstance().createMoves(currentGantry, s, jobToExecute.getPlace().getSlot()));
+                    updateData(s, jobToExecute.getPlace().getSlot(), -1);
+
+                    currentJobSequence.removeFirst();
+                }
+
+            }
+            else{
+                // doe inputJob
+                //We gaan opzoek naar de rij met het laagste "vulniveau" (volledig gevuld niveau)
+                int lowestHeight = -1;
+                for(int j : filledLevelList){
+                    if(j > lowestHeight){
+                        lowestHeight = j;
+                    }
+                }
+                //Eerste rij zoeken die de laagste vulniveau heeft, deze is het dichtst bij de kraan
+                int lowestRow = filledLevelList.indexOf(lowestHeight);
+
+                //In deze rij wordt een vrije plaats gezocht voor het item
+                Slot destination = searchViableSlot(new ArrayList<>(bottomSlots.get(lowestRow).values()), 0);
+
+                //Het item effectief verplaatsen door de moves te berekenen en de data aan te passen
+                jobToExecute.getPickup().getSlot().setItem(jobToExecute.getItem());
+
+                // effectief de move uitvoeren en toekennen aan een kraan, in de movegenerator wordt feasibility gegarandeerd
+                moves.addAll(MoveGenerator.getInstance().createMoves(currentGantry,jobToExecute.getPickup().getSlot(), destination));
+                updateData(jobToExecute.getPickup().getSlot(), destination, 1);
+
+                //De job uit de lijst verwijderen
+                currentJobSequence.removeFirst();
+
+
+            }
+        }
+
+        return moves;
+    }
+    /**
+     * Deze methode lost het probleem op door eerst de beginnen met de outputjobs af te werken.
+     * Als een item die nodig is voor een outputjob nog niet aanwezig is in de opslagplaats
+     * dan zullen eerst x aantal inputjobs worden afgewerkt, totdat het benodigde item zich in
+     * de opslagplaats bevindt.
+     * Daarna worden de overige inputjobs afgewerkt.
+     * @return een list van moves die nodig zijn om alle jobs af te werken
+     */
+
+    public List<Move> solveOld()
     {
         // dit is de lijst die we uiteindelijk zullen returnen
         List<Move> moves = new ArrayList<>();

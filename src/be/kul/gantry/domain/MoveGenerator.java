@@ -64,10 +64,10 @@ public class MoveGenerator {
         moves.add(naarItem);
         thisGantryMoves.add(naarItem);
 
+
         Move oppikkenItem = new Move(g, g.getX(), g.getY(), pickup.getItem().getId(), pickupPlaceDuration, true);
         moves.add(oppikkenItem);
         thisGantryMoves.add(oppikkenItem);
-
 
         Move vervoerItem = new Move(g, delivery.getCenterX(), delivery.getCenterY(), pickup.getItem().getId(), 0, false);
         makeFeasible(g, thisGantryMoves.get(thisGantryMoves.size() - 1), vervoerItem);
@@ -78,6 +78,7 @@ public class MoveGenerator {
         Move dropItem = new Move(g, g.getX(), g.getY(), null, pickupPlaceDuration, true);
         moves.add(dropItem);
         thisGantryMoves.add(dropItem);
+        pickup.getItem().setTimestamp(g.getTime());
 
 
         return moves;

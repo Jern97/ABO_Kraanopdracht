@@ -13,6 +13,7 @@ public class Item {
 
     public Item(int id) {
         this.id = id;
+        this.timestamp=0;
     }
 
     public int getId() {
@@ -20,4 +21,11 @@ public class Item {
     }
 
 
+    public double getTimestamp() {
+        return timestamp;
+    }
+
+    public void setTimestamp(double timestamp) {
+        this.timestamp = timestamp;
+    }
 }
