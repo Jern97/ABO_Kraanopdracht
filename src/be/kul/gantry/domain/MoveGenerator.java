@@ -64,7 +64,9 @@ public class MoveGenerator {
         moves.add(naarItem);
         thisGantryMoves.add(naarItem);
 
-        Move oppikkenItem = new Move(g, g.getX(), g.getY(), pickup.getItem().getId(), pickupPlaceDuration, true);
+        Move oppikkenItem = new Move(g, g.getX(), g.getY(), pickup.getItem().getId(), pickupPlaceDuration, false);
+        makeFeasible(g, thisGantryMoves.get(thisGantryMoves.size() - 1), oppikkenItem);
+        oppikkenItem = new Move(g, g.getX(), g.getY(), pickup.getItem().getId(), pickupPlaceDuration, true);
         moves.add(oppikkenItem);
         thisGantryMoves.add(oppikkenItem);
 
@@ -75,7 +77,9 @@ public class MoveGenerator {
         moves.add(vervoerItem);
         thisGantryMoves.add(vervoerItem);
 
-        Move dropItem = new Move(g, g.getX(), g.getY(), null, pickupPlaceDuration, true);
+        Move dropItem = new Move(g, g.getX(), g.getY(), null, pickupPlaceDuration, false);
+        makeFeasible(g, thisGantryMoves.get(thisGantryMoves.size() - 1), dropItem);
+        dropItem = new Move(g, g.getX(), g.getY(), null, pickupPlaceDuration, true);
         moves.add(dropItem);
         thisGantryMoves.add(dropItem);
 
@@ -107,41 +111,8 @@ public class MoveGenerator {
         }
 
         // opvragen van alle moves die kraan 2 tussen deze tijdstippen doet
-        List<Move> overlappingMoves = new ArrayList<>();
-        int beginTime = (int) previous.getTime();
-        int endTime = (int) current.getTime();
 
-        int firstMoveInRange = -1;
-        int lastMoveInRange = -1;
-        boolean firstMoveFound = false;
-
-        for (Move move : otherGantryMoves) {
-            // vanaf er een move gevonden is die verder in tijd is gelegen dan de begintijd is de eerste move geinitialiseerd
-            if(move.getTime() >= beginTime){
-                if (!firstMoveFound) {
-                    firstMoveFound = true;
-                    firstMoveInRange = otherGantryMoves.indexOf(move);
-                    lastMoveInRange = otherGantryMoves.indexOf(move);
-                }
-            }
-            // als de eerste move gevonden is, gaan we verder in de for loop, en zal de laatste move upgedate worden tot
-            // de move uit de lijst van de other Gantry verder ligt dan de eindtijd
-            if(firstMoveFound && move.getTime() <= endTime) {
-                lastMoveInRange = otherGantryMoves.indexOf(move);
-            }
-        }
-        //Indien er moves overlappen:
-        if(firstMoveInRange != -1 && lastMoveInRange != -1) {
-
-            // Voor de eerste move nemen we 1 move vroeger dan de bekomen index hierboven aangezien we het verloop van de move willen kennen
-            // Voor de laatste move willen we een verder nemen (+2 omdat sublist upper bound exlusive is)
-            int indexOfFirstMove = firstMoveInRange > 0 ? firstMoveInRange - 1 : 0;
-            int indexOfLastMove = lastMoveInRange < otherGantryMoves.size() - 1 ? lastMoveInRange + 2 : otherGantryMoves.size();
-
-            overlappingMoves.addAll(otherGantryMoves.subList(indexOfFirstMove, indexOfLastMove));
-
-        }
-
+        List<Move> overlappingMoves = getOverlappingMoves(otherGantry, previous.getTime(), current.getTime());
         // We zoeken snijpunt tussen moves van other gantry en current gantry die move wil uitvoeren
         //  (x2 - x1)
         //  -------- * t + offset = x
@@ -167,17 +138,104 @@ public class MoveGenerator {
             }
             //Er moet gewacht worden, omdat er anders een collision is
             else if(addedTime != 0){
-                //Wacht move toevoegen
-                Move waiting = new Move(g, previous.getX(), previous.getY(), previous.getItemInCraneID(), addedTime, true);
-                thisGantryMoves.add(waiting);
-                //Current move updaten naar de nieuwe tijd
-                Move updatedMove = new Move(current);
-                //Opnieuw proberen
-                makeFeasible(g, waiting, updatedMove);
+                //Als we moeten wachten is het belangrijk om te checken als de andere kraan ons niet kruist tijdens het wachten
+                double extremeOfOtherGantry = calculateExtreme(otherGantry, previous.getTime(), previous.getTime()+addedTime);
+                if(extremeOfOtherGantry == Double.NEGATIVE_INFINITY){
+                    System.out.println("stop");
+                }
+                if(g.getId() == 0 && extremeOfOtherGantry < previous.getX() ){
+                    //Kraan 0 zal kraan 1 kruisen indien hij wacht
+                    Move dodge = new Move(g, (int) extremeOfOtherGantry+safetyDistance, previous.getY(), previous.getItemInCraneID(), 0, true);
+                    thisGantryMoves.add(dodge);
+                    Move updatedMove = new Move(current);
+                    makeFeasible(g, dodge, updatedMove);
+                }
+                if(g.getId() == 1 && extremeOfOtherGantry > previous.getX()){
+                    //Kraan 1 zal kraan 0 kruisen indien hij wacht
+                    Move dodge = new Move(g, (int) extremeOfOtherGantry+safetyDistance, previous.getY(), previous.getItemInCraneID(), 0, true);
+                    thisGantryMoves.add(dodge);
+                    Move updatedMove = new Move(current);
+                    makeFeasible(g, dodge, updatedMove);
+                }
+                else {
+                    //Wacht move toevoegen
+                    Move waiting = new Move(g, previous.getX(), previous.getY(), previous.getItemInCraneID(), addedTime, true);
+                    thisGantryMoves.add(waiting);
+                    //Current move updaten naar de nieuwe tijd
+                    Move updatedMove = new Move(current);
+                    //Opnieuw proberen
+                    makeFeasible(g, waiting, updatedMove);
+                }
                 break;
             }
         }
 
+    }
+
+    public double calculateExtreme(Gantry g, double startTime, double endTime){
+        List<Move> overlappingMoves = getOverlappingMoves(g, startTime, endTime);
+        int extreme;
+
+        if(g.getId() == 0) {
+            //Voor kraan 0 is het extrema het maximum
+            extreme = Integer.MIN_VALUE;
+            for (Move m : overlappingMoves) {
+                if(m.getX() > extreme) extreme = m.getX();
+            }
+        }
+        else{
+            //Voor kraan 1 is het extrema het minimum
+            extreme = Integer.MAX_VALUE;
+            for(Move m : overlappingMoves){
+                if(m.getX() < extreme) extreme = m.getX();
+            }
+        }
+        return extreme;
+
+    }
+
+    public List<Move> getOverlappingMoves(Gantry g, double beginTime, double endTime){
+        List<Move> gantryMoves;
+        if (g.getId() == 0) {
+            gantryMoves = gantry0Moves;
+        } else {
+            gantryMoves = gantry1Moves;
+        }
+
+        List<Move> overlappingMoves = new ArrayList<>();
+
+        int firstMoveInRange = -1;
+        int lastMoveInRange = -1;
+        boolean firstMoveFound = false;
+
+        for (Move move : gantryMoves) {
+            // vanaf er een move gevonden is die verder in tijd is gelegen dan de begintijd is de eerste move geinitialiseerd
+            if(move.getTime() >= beginTime){
+                if (!firstMoveFound) {
+                    firstMoveFound = true;
+                    firstMoveInRange = gantryMoves.indexOf(move);
+                    lastMoveInRange = gantryMoves.indexOf(move);
+                }
+            }
+            // als de eerste move gevonden is, gaan we verder in de for loop, en zal de laatste move upgedate worden tot
+            // de move uit de lijst van de other Gantry verder ligt dan de eindtijd
+            if(firstMoveFound && move.getTime() <= endTime) {
+                lastMoveInRange = gantryMoves.indexOf(move);
+            }
+        }
+        //Indien er moves overlappen:
+        if(firstMoveInRange != -1 && lastMoveInRange != -1) {
+
+            // Voor de eerste move nemen we 1 move vroeger dan de bekomen index hierboven aangezien we het verloop van de move willen kennen
+            // Voor de laatste move willen we een verder nemen (+2 omdat sublist upper bound exlusive is)
+            int indexOfFirstMove = firstMoveInRange > 0 ? firstMoveInRange - 1 : 0;
+            int indexOfLastMove = lastMoveInRange < gantryMoves.size() - 1 ? lastMoveInRange + 2 : gantryMoves.size();
+
+            overlappingMoves.addAll(gantryMoves.subList(indexOfFirstMove, indexOfLastMove));
+
+        }
+
+        return overlappingMoves;
     }
 
     public double calculateDelay(Move current, Move previous, Move currentOther, Move previousOther) {
@@ -211,6 +269,9 @@ public class MoveGenerator {
             else{
                 additionalTime = -(((currentOther.getX() + safetyDistance - offsetA) / ricoA)-currentOther.getTime());
             }
+            if(additionalTime == Double.NEGATIVE_INFINITY){
+                System.out.println("stop");
+            }
             return additionalTime;
         }
 
@@ -225,7 +286,7 @@ public class MoveGenerator {
         else if (tijdSnijpunt >= closestCurrent.getTime()) {
             double rico = closestCurrent == current ? ricoB : ricoA;
             double offset = closestCurrent == current ? offsetB : offsetA;
-            double distance = Math.abs(closestCurrent.getX() - rico * closestCurrent.getTime() - offset);
+            double distance = Math.abs(closestCurrent.getX() - (rico * closestCurrent.getTime() + offset));
 
             if(distance < safetyDistance){
                 //Als dit de laatste move is van de andere kraan:
@@ -235,6 +296,9 @@ public class MoveGenerator {
                 }
                 else{
                     additionalTime = -(((currentOther.getX() + safetyDistance - offsetA) / ricoA)-currentOther.getTime());
+                }
+                if(additionalTime == Double.NEGATIVE_INFINITY){
+                    System.out.println("stop");
                 }
                 return additionalTime;
             }
