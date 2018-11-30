@@ -27,6 +27,8 @@ public class Problem {
     private final List<Job> inputJobSequence;
     private final List<Job> outputJobSequence;
 
+
+    private Map<Integer, Double> rowLockedTill= new HashMap<>();
     public static List<Gantry> gantries;
     private final List<Slot> slots;
     public static int safetyDistance;
@@ -596,6 +598,8 @@ public class Problem {
                     otherGantry=gantry1;*/
                 }
                 else{
+
+
                     // doe effectief de outputJob
                     //Als het item dat verwijderd moet worden parents heeft met items moeten deze eerst verplaatst worden;
                     if(s.getParents().get(0) != null && s.getParents().get(0).getItem() != null){
@@ -609,7 +613,7 @@ public class Problem {
 
                     MoveGenerator.getInstance().createMoves(currentGantry, s, jobToExecute.getPlace().getSlot());
                     updateData(s, jobToExecute.getPlace().getSlot(), -1);
-
+                    rowLockedTill.put(s.getCenterY()/10,currentGantry.getTime());
                     currentJobSequence.removeFirst();
                 }
 
@@ -626,6 +630,10 @@ public class Problem {
                 }
                 //Eerste rij zoeken die de laagste vulniveau heeft, deze is het dichtst bij de kraan
                 int lowestRow = filledLevelList.indexOf(lowestHeight);
+
+                if(rowLockedTill.get(lowestRow)!=null && rowLockedTill.get(lowestRow)>=currentGantry.getTime()){
+                    lowestRow++;
+                }
 
                 //In deze rij wordt een vrije plaats gezocht voor het item
                 Slot destination = searchViableSlot(new ArrayList<>(bottomSlots.get(lowestRow).values()), 0);
