@@ -122,7 +122,7 @@ public class MoveGenerator {
 
 
         //Todo check dit
-        boolean thisStartsBelowOther= otherGantry.getX()-previous.getX()>0 ? true: false;
+        boolean thisStartsBelowOther= otherGantry.getX()-previous.getX()>0;
         boolean collision= thisStartsBelowOther ? current.getX()>otherGantry.getX() : current.getX()<otherGantry.getX();
 
         double distance= Math.abs(current.getX()-otherGantry.getX());
