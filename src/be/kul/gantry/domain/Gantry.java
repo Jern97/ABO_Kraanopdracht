@@ -12,6 +12,8 @@ public class Gantry {
     private final int startX,startY;
     private final double xSpeed,ySpeed;
 
+    private boolean retired=false;
+
     private int x,y;
     private double time;
 
@@ -113,5 +115,13 @@ public class Gantry {
 
     public boolean canReachSlot(Slot s) {
         return xMin <= s.getCenterX() && s.getCenterX() <= xMax;
+    }
+
+    public boolean isRetired() {
+        return retired;
+    }
+
+    public void setRetired(boolean retired) {
+        this.retired = retired;
     }
 }

@@ -580,10 +580,6 @@ public class Problem {
                 currentJobSequence=outputJobSequenceCopy;
             }
 
-
-            if(currentJobSequence.isEmpty()){
-                System.out.println("stop");
-            }
             Job jobToExecute=currentJobSequence.get(0);
             if(currentJobSequence==outputJobSequenceCopy){
                 // probeer outputJob
@@ -610,6 +606,7 @@ public class Problem {
                     }
 
                     //Het item effectief verplaatsen door de moves te berekenen en de data aan te passen
+
                     MoveGenerator.getInstance().createMoves(currentGantry, s, jobToExecute.getPlace().getSlot());
                     updateData(s, jobToExecute.getPlace().getSlot(), -1);
 
@@ -618,6 +615,7 @@ public class Problem {
 
             }
             else{
+
                 // doe inputJob
                 //We gaan opzoek naar de rij met het laagste "vulniveau" (volledig gevuld niveau)
                 int lowestHeight = -1;
@@ -644,8 +642,12 @@ public class Problem {
 
 
             }
-            if(inputJobSequenceCopy.isEmpty()) MoveGenerator.getInstance().retireGantry(gantry0);
-            if(outputJobSequenceCopy.isEmpty()) MoveGenerator.getInstance().retireGantry(gantry1);
+            if(inputJobSequenceCopy.isEmpty() && !gantry0.isRetired()) {
+                MoveGenerator.getInstance().retireGantry(gantry0);
+            }
+            if(outputJobSequenceCopy.isEmpty() && !gantry1.isRetired()){
+                MoveGenerator.getInstance().retireGantry(gantry1);
+            }
         }
 
     }
