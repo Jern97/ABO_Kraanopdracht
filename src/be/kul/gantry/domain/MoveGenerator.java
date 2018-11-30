@@ -327,17 +327,6 @@ public class MoveGenerator {
         return -1;
     }
 
-    public void retireGantry(Gantry g){
-        g.setRetired(true);
-        if(g.getId() == 0){
-            Move backToBase = new Move(g, -20, gantry0Moves.get(gantry0Moves.size()-1).getY(), null, 0, true);
-            gantry0Moves.add(backToBase);
-        }
-        else {
-            Move backToBase = new Move(g, 1020, gantry1Moves.get(gantry1Moves.size()-1).getY(), null, 0, true);
-            gantry1Moves.add(backToBase);
-        }
-    }
 
     public void pauseGantry(Gantry g, double additionalTime){
         if(g.getId() == 0){

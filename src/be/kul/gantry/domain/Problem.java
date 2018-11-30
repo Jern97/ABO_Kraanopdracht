@@ -570,6 +570,8 @@ public class Problem {
         LinkedList<Job> otherJobSequence= inputJobSequenceCopy;
 
         while(inputJobSequenceCopy.size()>0 || outputJobSequenceCopy.size()>0){
+
+
             // vraag current en other gantry op
             if((gantry0.getTime()<gantry1.getTime() || outputJobSequenceCopy.isEmpty() )&& !inputJobSequenceCopy.isEmpty()){
                 currentGantry=gantry0;
@@ -608,6 +610,7 @@ public class Problem {
                     if(s.getParents().get(1) != null && s.getParents().get(1).getItem() != null){
                         clearTop(s.getParents().get(1), currentGantry);
                     }
+
 
                     //Het item effectief verplaatsen door de moves te berekenen en de data aan te passen
 
@@ -650,12 +653,9 @@ public class Problem {
 
 
             }
-            if(inputJobSequenceCopy.isEmpty() && !gantry0.isRetired()) {
-                MoveGenerator.getInstance().retireGantry(gantry0);
-            }
-            if(outputJobSequenceCopy.isEmpty() && !gantry1.isRetired()){
-                MoveGenerator.getInstance().retireGantry(gantry1);
-            }
+
+
+
         }
 
     }
@@ -668,7 +668,6 @@ public class Problem {
      */
 
     public void clearTop(Slot s, Gantry g){
-
 
         //Recursief naar boven gaan in de stapel, deze moeten eerst verplaatst worden
         if(s.getParents().get(0) != null && s.getParents().get(0).getItem() != null){
