@@ -29,7 +29,7 @@ public class Move {
 
             MoveListener.getInstance().getGraphDriver().addMove(this);
             try {
-                sleep(300);
+                sleep(100);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }

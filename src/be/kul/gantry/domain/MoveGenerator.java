@@ -109,9 +109,9 @@ public class MoveGenerator {
         // opvragen van alle moves die kraan 2 tussen deze tijdstippen doet
 
         List<Move> overlappingMoves = getOverlappingMoves(otherGantry, previous.getTime(), current.getTime());
-        if(g.getId() == 1 && overlappingMoves.isEmpty()){
+        /*if(g.getId() == 0 && overlappingMoves.isEmpty()){
             System.out.println("stop");
-        }
+        }*/
         // We zoeken snijpunt tussen moves van other gantry en current gantry die move wil uitvoeren
         //  (x2 - x1)
         //  -------- * t + offset = x
@@ -121,51 +121,68 @@ public class MoveGenerator {
         //double offsetA = current.getX() - ricoA * current.getTime();
 
 
-        for (int i = 1; i < overlappingMoves.size(); i++) {
-            Move previousOther = overlappingMoves.get(i - 1);
-            Move currentOther = overlappingMoves.get(i);
+        //Todo check dit
+        boolean thisStartsBelowOther= otherGantry.getX()-previous.getX()>0 ? true: false;
+        boolean collision= thisStartsBelowOther ? current.getX()>otherGantry.getX() : current.getX()<otherGantry.getX();
 
-            double addedTime = calculateDelay(current, previous, currentOther, previousOther);
+        double distance= Math.abs(current.getX()-otherGantry.getX());
 
-            if(addedTime != 0 && currentOther == otherGantryMoves.get(otherGantryMoves.size()-1)){
+        if(collision || distance <Problem.safetyDistance){
+                // beweeg andere kraan
                 //We kunnen de bestemming niet bereiken zonder de andere kraan te bewegen, we moeten hem verzetten
                 int xDestination = ricoA > 0 ? current.getX() + safetyDistance : current.getX() - safetyDistance;
-                otherGantryMoves.add(new Move(currentOther.getGantry(), xDestination, currentOther.getY(), currentOther.getItemInCraneID(), 0, true));
+                otherGantryMoves.add(new Move(otherGantry, xDestination, otherGantry.getY(), otherGantryMoves.get(otherGantryMoves.size() - 1).getItemInCraneID(), 0, true));
                 //opnieuw proberen
                 makeFeasible(g, previous, current);
-                break;
-            }
-            //Er moet gewacht worden, omdat er anders een collision is
-            else if(addedTime != 0){
-                //Als we moeten wachten is het belangrijk om te checken als de andere kraan ons niet kruist tijdens het wachten
-                double extremeOfOtherGantry = calculateExtreme(otherGantry, previous.getTime(), previous.getTime()+addedTime);
-                if(extremeOfOtherGantry == Double.NEGATIVE_INFINITY){
-                    System.out.println("stop");
+        }
+        else {
+
+            for (int i = 1; i < overlappingMoves.size(); i++) {
+                Move previousOther = overlappingMoves.get(i - 1);
+                Move currentOther = overlappingMoves.get(i);
+
+                double addedTime = calculateDelay(current, previous, currentOther, previousOther);
+
+                /*if (addedTime != 0 && currentOther == otherGantryMoves.get(otherGantryMoves.size() - 1) && (collision || distance < Problem.safetyDistance)) {
+                    //if(addedTime != 0 && currentOther == otherGantryMoves.get(otherGantryMoves.size()-1)){
+                    //We kunnen de bestemming niet bereiken zonder de andere kraan te bewegen, we moeten hem verzetten
+                    int xDestination = ricoA > 0 ? current.getX() + safetyDistance : current.getX() - safetyDistance;
+                    otherGantryMoves.add(new Move(currentOther.getGantry(), xDestination, currentOther.getY(), currentOther.getItemInCraneID(), 0, true));
+                    //opnieuw proberen
+                    makeFeasible(g, previous, current);
+                    break;
+                }*/
+                //Er moet gewacht worden, omdat er anders een collision is
+                if (addedTime != 0) {
+                    //Als we moeten wachten is het belangrijk om te checken als de andere kraan ons niet kruist tijdens het wachten
+                    double extremeOfOtherGantry = calculateExtreme(otherGantry, previous.getTime(), previous.getTime() + addedTime);
+                    if (extremeOfOtherGantry == Double.NEGATIVE_INFINITY) {
+                        System.out.println("stop");
+                    }
+                    if (g.getId() == 0 && extremeOfOtherGantry < previous.getX()) {
+                        //Kraan 0 zal kraan 1 kruisen indien hij wacht
+                        Move dodge = new Move(g, (int) extremeOfOtherGantry + safetyDistance, previous.getY(), previous.getItemInCraneID(), 0, true);
+                        thisGantryMoves.add(dodge);
+                        Move updatedMove = new Move(current);
+                        makeFeasible(g, dodge, updatedMove);
+                    }
+                    if (g.getId() == 1 && extremeOfOtherGantry > previous.getX()) {
+                        //Kraan 1 zal kraan 0 kruisen indien hij wacht
+                        Move dodge = new Move(g, (int) extremeOfOtherGantry + safetyDistance, previous.getY(), previous.getItemInCraneID(), 0, true);
+                        thisGantryMoves.add(dodge);
+                        Move updatedMove = new Move(current);
+                        makeFeasible(g, dodge, updatedMove);
+                    } else {
+                        //Wacht move toevoegen
+                        Move waiting = new Move(g, previous.getX(), previous.getY(), previous.getItemInCraneID(), addedTime, true);
+                        thisGantryMoves.add(waiting);
+                        //Current move updaten naar de nieuwe tijd
+                        Move updatedMove = new Move(current);
+                        //Opnieuw proberen
+                        makeFeasible(g, waiting, updatedMove);
+                    }
+                    break;
                 }
-                if(g.getId() == 0 && extremeOfOtherGantry < previous.getX() ){
-                    //Kraan 0 zal kraan 1 kruisen indien hij wacht
-                    Move dodge = new Move(g, (int) extremeOfOtherGantry+safetyDistance, previous.getY(), previous.getItemInCraneID(), 0, true);
-                    thisGantryMoves.add(dodge);
-                    Move updatedMove = new Move(current);
-                    makeFeasible(g, dodge, updatedMove);
-                }
-                if(g.getId() == 1 && extremeOfOtherGantry > previous.getX()){
-                    //Kraan 1 zal kraan 0 kruisen indien hij wacht
-                    Move dodge = new Move(g, (int) extremeOfOtherGantry+safetyDistance, previous.getY(), previous.getItemInCraneID(), 0, true);
-                    thisGantryMoves.add(dodge);
-                    Move updatedMove = new Move(current);
-                    makeFeasible(g, dodge, updatedMove);
-                }
-                else {
-                    //Wacht move toevoegen
-                    Move waiting = new Move(g, previous.getX(), previous.getY(), previous.getItemInCraneID(), addedTime, true);
-                    thisGantryMoves.add(waiting);
-                    //Current move updaten naar de nieuwe tijd
-                    Move updatedMove = new Move(current);
-                    //Opnieuw proberen
-                    makeFeasible(g, waiting, updatedMove);
-                }
-                break;
             }
         }
 
@@ -233,6 +250,7 @@ public class MoveGenerator {
             overlappingMoves.addAll(gantryMoves.subList(indexOfFirstMove, indexOfLastMove));
 
         }
+
 
 
         return overlappingMoves;
