@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static be.kul.gantry.domain.Problem.pickupPlaceDuration;
+import static be.kul.gantry.domain.Problem.rowLockedTill;
 
 /**
  * in de MoveGenerator wordt voor elk van de kranen een lijst van moves bijgehouden
@@ -68,6 +69,9 @@ public class MoveGenerator {
         thisGantryMoves.add(oppikkenItem);
 
 
+        if(Problem.rowLockedTill.get(delivery.getCenterY())!=null && Problem.rowLockedTill.get(delivery.getCenterY())>=g.getTime()){
+            MoveGenerator.getInstance().pauseGantry(g, Problem.rowLockedTill.get(delivery.getCenterY()) - g.getTime()+5);
+        }
         Move vervoerItem = new Move(g, delivery.getCenterX(), delivery.getCenterY(), pickup.getItem().getId(), 0, false);
         makeFeasible(g, thisGantryMoves.get(thisGantryMoves.size() - 1), vervoerItem);
         vervoerItem = new Move(g, delivery.getCenterX(), delivery.getCenterY(), pickup.getItem().getId(), 0, true);
@@ -92,6 +96,7 @@ public class MoveGenerator {
      * @param current  move die we willen mogelijk maken
      */
     public void makeFeasible(Gantry g, Move previous, Move current) {
+
         // basis informatie over gantries
         List<Move> otherGantryMoves;
         List<Move> thisGantryMoves;
@@ -329,12 +334,38 @@ public class MoveGenerator {
 
 
     public void pauseGantry(Gantry g, double additionalTime){
-        if(g.getId() == 0){
+        // TODO hier moet gedodged kunnen worden a broer
+        Gantry otherGantry= g.getId()==0 ? gantries.get(1) : gantries.get(0);
+
+        double extremeOfOtherGantry = calculateExtreme(otherGantry, g.getTime(), g.getTime() + additionalTime);
+        if (extremeOfOtherGantry == Double.NEGATIVE_INFINITY) {
+            System.out.println("stop");
+        }
+        if (g.getId() == 0 && extremeOfOtherGantry < g.getX()) {
+            //Kraan 0 zal kraan 1 kruisen indien hij wacht
+            Move dodge = new Move(g, (int) extremeOfOtherGantry + safetyDistance, g.getY(), gantry0Moves.get(gantry0Moves.size()-1).getItemInCraneID(), 0, true);
+            gantry0Moves.add(dodge);
             gantry0Moves.add(new Move(g, g.getX(), g.getY(), gantry0Moves.get(gantry0Moves.size()-1).getItemInCraneID(), additionalTime, true));
         }
-        else{
-            gantry1Moves.add(new Move(g, g.getX(), g.getY(), gantry1Moves.get(gantry1Moves.size()-1).getItemInCraneID(), additionalTime, true));
+        if (g.getId() == 1 && extremeOfOtherGantry > g.getX()) {
+            //Kraan 1 zal kraan 0 kruisen indien hij wacht
+            Move dodge = new Move(g, (int) extremeOfOtherGantry + safetyDistance, g.getY(), gantry1Moves.get(gantry1Moves.size()-1).getItemInCraneID(), 0, true);
+            gantry1Moves.add(dodge);
+            gantry1Moves.add(new Move(g, g.getX(), g.getY(), gantry0Moves.get(gantry0Moves.size()-1).getItemInCraneID(), additionalTime, true));
+
         }
+        else{
+            if(g.getId()==0) {
+                gantry0Moves.add(new Move(g, g.getX(), g.getY(), gantry0Moves.get(gantry0Moves.size() - 1).getItemInCraneID(), additionalTime, true));
+            }
+            else{
+                gantry1Moves.add(new Move(g, g.getX(), g.getY(), gantry0Moves.get(gantry0Moves.size()-1).getItemInCraneID(), additionalTime, true));
+            }
+
+
+        }
+
+
 
     }
 }

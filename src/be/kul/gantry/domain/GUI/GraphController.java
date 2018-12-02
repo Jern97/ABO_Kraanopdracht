@@ -74,10 +74,7 @@ public class GraphController {
                 if (m.getGantry().getId() == 1) {
                     gantry1.getData().add(new XYChart.Data(m.getTime(), m.getX()));
                 }
-                if(Math.abs(gantries.get(0).getX()-gantries.get(1).getX())<safetyDistance){
-                    System.out.println("OWOWOW kik ier minder dan de safetyDistance e broer");
-                }
-                System.out.println(Math.abs(gantries.get(0).getX()-gantries.get(1).getX()));
+
                 double minDiff= Math.abs(xaxis.getLowerBound()- m.getTime());
                 double maxDiff= Math.abs(xaxis.getUpperBound()-m.getTime());
                 if(m.getTime()<xaxis.getLowerBound()+200){

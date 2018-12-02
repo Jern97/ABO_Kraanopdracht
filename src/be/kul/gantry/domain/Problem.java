@@ -28,7 +28,7 @@ public class Problem {
     private final List<Job> outputJobSequence;
 
 
-    private Map<Integer, Double> rowLockedTill= new HashMap<>();
+    public static Map<Integer, Double> rowLockedTill= new HashMap<>();
     public static List<Gantry> gantries;
     private final List<Slot> slots;
     public static int safetyDistance;
@@ -605,18 +605,17 @@ public class Problem {
                     // doe effectief de outputJob
                     //Als het item dat verwijderd moet worden parents heeft met items moeten deze eerst verplaatst worden;
                     if(s.getParents().get(0) != null && s.getParents().get(0).getItem() != null){
-                        clearTop(s.getParents().get(0), currentGantry);
+                        clearTop(s.getParents().get(0), currentGantry, currentGantry.getTime()>=otherGantry.getTime());
                     }
                     if(s.getParents().get(1) != null && s.getParents().get(1).getItem() != null){
-                        clearTop(s.getParents().get(1), currentGantry);
+                        clearTop(s.getParents().get(1), currentGantry, currentGantry.getTime()>=otherGantry.getTime());
                     }
 
 
                     //Het item effectief verplaatsen door de moves te berekenen en de data aan te passen
-
                     MoveGenerator.getInstance().createMoves(currentGantry, s, jobToExecute.getPlace().getSlot());
-                    updateData(s, jobToExecute.getPlace().getSlot(), -1);
                     rowLockedTill.put(s.getCenterY()/10,currentGantry.getTime());
+                    updateData(s, jobToExecute.getPlace().getSlot(), -1);
                     currentJobSequence.removeFirst();
                 }
 
@@ -663,18 +662,29 @@ public class Problem {
     /**
      * Deze methode verplaatst alle items boven een bepaald slot (uitgraven) naar een zo dicht mogelijke rij.
      * @param s Item dat weg moet (1ste keer: de parent van het item dat we nodig hebben voor de job)
-     * @param g Kraan die dit moet uitvoeren
+     * @param currentGantry Kraan die dit moet uitvoeren
      * @return een list van moves die nodig zijn voor de actie
      */
 
-    public void clearTop(Slot s, Gantry g){
-
+    public void clearTop(Slot s, Gantry currentGantry, boolean helpFromOther){
+        //helpFromOther=false;
+        Gantry otherGantry=currentGantry.getId()==0 ? gantries.get(1):gantries.get(0);
+        Gantry nextExecutingGantry=helpFromOther ? otherGantry:currentGantry;
+        // pause other gantry?
+        if(helpFromOther) {
+            // TODO bij pause gantry wordt er geen feasibility gecontrolleerd
+            if(currentGantry.getTime()>=otherGantry.getTime()){
+                MoveGenerator.getInstance().pauseGantry(otherGantry, currentGantry.getTime() - otherGantry.getTime());
+            }
+        }
         //Recursief naar boven gaan in de stapel, deze moeten eerst verplaatst worden
         if(s.getParents().get(0) != null && s.getParents().get(0).getItem() != null){
-            clearTop(s.getParents().get(0), g);
+
+            clearTop(s.getParents().get(0), nextExecutingGantry, currentGantry.getTime() - otherGantry.getTime() >= 0);
+
         }
         if(s.getParents().get(1) != null && s.getParents().get(1).getItem() != null){
-            clearTop(s.getParents().get(1), g);
+            clearTop(s.getParents().get(1), nextExecutingGantry, currentGantry.getTime()-otherGantry.getTime()>=0);
         }
 
         //Nieuwe locatie zoeken voor item (in een zo dicht mogelijke rij)
@@ -700,10 +710,20 @@ public class Problem {
         }
 
         //Bovenstaande containers uitgraven is voltooid, nu kunnen we het gewenste item effectief verplaatsen
-        MoveGenerator.getInstance().createMoves(g, s, newLocation);
+        MoveGenerator.getInstance().createMoves(currentGantry, s, newLocation);
         //Slots en hashmap updaten
         updateData(s, newLocation, 0);
+        rowLockedTill.put(s.getCenterY()/10,currentGantry.getTime());
 
+
+
+        // pause other gantry?
+        if(helpFromOther) {
+            // TODO bij pause gantry wordt er geen feasibility gecontrolleerd
+            if(currentGantry.getTime()>=otherGantry.getTime()){
+            MoveGenerator.getInstance().pauseGantry(otherGantry, currentGantry.getTime() - otherGantry.getTime());
+            }
+        }
     }
 
     /**
