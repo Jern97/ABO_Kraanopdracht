@@ -26,7 +26,7 @@ public class Problem {
     private final List<Item> items;
     private final List<Job> inputJobSequence;
     private final List<Job> outputJobSequence;
-
+    private Set<Item> outputItems;
 
     public static Map<Integer, Double> rowLockedTill= new HashMap<>();
     public static List<Gantry> gantries;
@@ -49,6 +49,10 @@ public class Problem {
         this.items = items;
         this.inputJobSequence = inputJobSequence;
         this.outputJobSequence = outputJobSequence;
+        outputItems=new HashSet<>();
+        for (Job job : outputJobSequence) {
+            outputItems.add(job.getItem());
+        }
         this.gantries = gantries;
         this.slots = slots;
         this.safetyDistance = safetyDistance;
@@ -635,8 +639,15 @@ public class Problem {
                     lowestRow++;
                 }
 
+
+                Slot destination=null;
                 //In deze rij wordt een vrije plaats gezocht voor het item
-                Slot destination = searchViableSlot(new ArrayList<>(bottomSlots.get(lowestRow).values()), bottomSlots.get(lowestRow).size()/2, true, true);
+                if(outputItems.contains(jobToExecute.getItem())) {
+                    destination = searchViableSlot(new ArrayList<>(bottomSlots.get(lowestRow).values()), bottomSlots.get(lowestRow).size() / 2, false, true);
+                }
+                else{
+                    destination=  searchViableSlot(new ArrayList<>(bottomSlots.get(lowestRow).values()), bottomSlots.get(lowestRow).size() / 2, true, false);
+                }
 
                 //Het item effectief verplaatsen door de moves te berekenen en de data aan te passen
                 jobToExecute.getPickup().getSlot().setItem(jobToExecute.getItem());
