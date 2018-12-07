@@ -1,20 +1,10 @@
 package be.kul.gantry.domain;
 
-import be.kul.gantry.domain.GUI.GraphController;
-import be.kul.gantry.domain.GUI.GraphDriver;
 import be.kul.gantry.domain.GUI.MoveListener;
-import javafx.application.Application;
-import javafx.application.Platform;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Parent;
-import javafx.scene.Scene;
-import javafx.stage.Stage;
 
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
-import java.util.ArrayList;
-import java.util.List;
 
 import static java.lang.Thread.sleep;
 
@@ -47,7 +37,8 @@ public class Main {
                     BufferedWriter writer = new BufferedWriter(new FileWriter(OUTPUT_FILE));
                     writer.write("\"gID\";\"T\";\"x\";\"y\";\"itemsInCraneID\"");
 
-                    problem.solve();
+                    if (problem.getGantries().size() == 2) problem.solveTwoGantries();
+                    else problem.solveOneGantry();
 
                     System.out.println("########## GANTRY0");
                     for (Move m : MoveGenerator.getInstance().gantry0Moves) {

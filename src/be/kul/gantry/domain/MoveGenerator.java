@@ -17,18 +17,31 @@ public class MoveGenerator {
     private static int safetyDistance = Problem.safetyDistance;
     List<Move> gantry0Moves;
     List<Move> gantry1Moves;
+    boolean oneGantry;
+
 
     private MoveGenerator() {
         gantry0Moves = new ArrayList<>();
         gantry1Moves = new ArrayList<>();
-        Gantry gantry0 = Problem.gantries.get(0);
-        Gantry gantry1 = Problem.gantries.get(1);
+        if(Problem.gantries.size() == 1){
+            Gantry gantry0 = Problem.gantries.get(0);
+            // we maken voor elke kraan 2 dummy moves om de makeFeasible te laten werken voor de eerste moves
+            gantry0Moves.add(new Move(gantry0, gantry0.getX(), gantry0.getY(), null, -1, false));
+            gantry0Moves.add(new Move(gantry0, gantry0.getX(), gantry0.getY(), null, 0, false));
 
-        // we maken voor elke kraan 2 dummy moves om de makeFeasible te laten werken voor de eerste moves
-        gantry0Moves.add(new Move(gantry0, gantry0.getX(), gantry0.getY(), null, -1, false));
-        gantry0Moves.add(new Move(gantry0, gantry0.getX(), gantry0.getY(), null, 0, false));
-        gantry1Moves.add(new Move(gantry1, gantry1.getX(), gantry1.getY(), null, -1, false));
-        gantry1Moves.add(new Move(gantry1, gantry1.getX(), gantry1.getY(), null, 0, false));
+            oneGantry = true;
+        }
+        else {
+            Gantry gantry0 = Problem.gantries.get(0);
+            Gantry gantry1 = Problem.gantries.get(1);
+            // we maken voor elke kraan 2 dummy moves om de makeFeasible te laten werken voor de eerste moves
+            gantry0Moves.add(new Move(gantry0, gantry0.getX(), gantry0.getY(), null, -1, false));
+            gantry0Moves.add(new Move(gantry0, gantry0.getX(), gantry0.getY(), null, 0, false));
+            gantry1Moves.add(new Move(gantry1, gantry1.getX(), gantry1.getY(), null, -1, false));
+            gantry1Moves.add(new Move(gantry1, gantry1.getX(), gantry1.getY(), null, 0, false));
+
+            oneGantry = false;
+        }
 
     }
 
@@ -96,6 +109,7 @@ public class MoveGenerator {
      * @param current  move die we willen mogelijk maken
      */
     public void makeFeasible(Gantry g, Move previous, Move current) {
+        if(oneGantry) return;
 
         // basis informatie over gantries
         List<Move> otherGantryMoves;

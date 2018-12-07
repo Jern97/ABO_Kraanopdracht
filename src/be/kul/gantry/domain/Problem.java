@@ -550,10 +550,8 @@ public class Problem {
      * @return een list van moves die nodig zijn om alle jobs af te werken
      */
 
-    public void solve()
+    public void solveTwoGantries()
     {
-        // dit is de lijst die we uiteindelijk zullen returnen
-
         LinkedList<Job> inputJobSequenceCopy= new LinkedList<>(inputJobSequence);
         LinkedList<Job> outputJobSequenceCopy= new LinkedList<>(outputJobSequence);
 
@@ -638,7 +636,7 @@ public class Problem {
                 }
 
                 //In deze rij wordt een vrije plaats gezocht voor het item
-                Slot destination = searchViableSlot(new ArrayList<>(bottomSlots.get(lowestRow).values()), 50, true, true);
+                Slot destination = searchViableSlot(new ArrayList<>(bottomSlots.get(lowestRow).values()), bottomSlots.get(lowestRow).size()/2, true, true);
 
                 //Het item effectief verplaatsen door de moves te berekenen en de data aan te passen
                 jobToExecute.getPickup().getSlot().setItem(jobToExecute.getItem());
@@ -652,11 +650,76 @@ public class Problem {
 
 
             }
-
-
-
         }
 
+    }
+
+    public void solveOneGantry()
+    {
+        //Linkedlist maken van inputJobSequence om gemakkelijk jobs er te kunnen uithalen (removeFirst en getFirst())
+        LinkedList<Job> inputJobSequenceCopy = new LinkedList<>(inputJobSequence);
+
+        //We beginnen met het uitvoeren van de outputjobs
+        for(Job j_out: outputJobSequence){
+            Slot s = itemSlotMap.get(j_out.getItem().getId());
+
+            //Als we het item nog niet kunnen vinden wordt eerst een deel van de inputsequence afgewerkt.
+            while(s == null){
+                Job j_in = inputJobSequenceCopy.getFirst();
+                //We gaan opzoek naar de rij met de laagste "vulniveau" (volledig gevuld niveau)
+                int lowestHeight = -1;
+                for(int j : filledLevelList){
+                    if(j > lowestHeight){
+                        lowestHeight = j;
+                    }
+                }
+                //Eerste rij zoeken die de laagste vulniveau heeft, deze is het dichtst bij de kraan
+                int lowestRow = filledLevelList.indexOf(lowestHeight);
+
+                //In deze rij wordt een vrije plaats gezocht voor het item
+                Slot destination = searchViableSlot(new ArrayList<>(bottomSlots.get(lowestRow).values()), bottomSlots.get(lowestRow).size()/2, true, true);
+
+                //Het item effectief verplaatsen door de moves te berekenen en de data aan te passen
+                j_in.getPickup().getSlot().setItem(j_in.getItem());
+                MoveGenerator.getInstance().createMoves(gantries.get(0),j_in.getPickup().getSlot(), destination);
+                updateData(j_in.getPickup().getSlot(), destination, 1);
+
+                //De job uit de lijst verwijderen
+                inputJobSequenceCopy.removeFirst();
+
+                //Opnieuw zoeken voor het Slot van de outputjob
+                s = itemSlotMap.get(j_out.getItem().getId());
+            }
+
+            //Als het item dat verwijderd moet worden parents heeft met items moeten deze eerst verplaatst worden;
+            if(s.getParents().get(0) != null && s.getParents().get(0).getItem() != null){
+                clearTop(s.getParents().get(0), gantries.get(0), false);
+            }
+            if(s.getParents().get(1) != null && s.getParents().get(1).getItem() != null){
+                clearTop(s.getParents().get(1), gantries.get(0), false);
+            }
+
+            //Het item effectief verplaatsen door de moves te berekenen en de data aan te passen
+            MoveGenerator.getInstance().createMoves(gantries.get(0), s, j_out.getPlace().getSlot());
+            updateData(s, j_out.getPlace().getSlot(), -1);
+        }
+
+        //Als alle outputsjobs klaar zijn werken we de overige input jobs af
+        for (Job j_in: inputJobSequenceCopy){
+            int lowestHeight = -1;
+            for(int j : filledLevelList){
+                if(j > lowestHeight){
+                    lowestHeight = j;
+                }
+            }
+            int lowestRow = filledLevelList.indexOf(lowestHeight);
+            Slot destination = searchViableSlot(new ArrayList<>(bottomSlots.get(lowestRow).values()),0, true, true);
+
+            //Het item effectief verplaatsen door de moves te berekenen en de data aan te passen
+            j_in.getPickup().getSlot().setItem(j_in.getItem());
+            MoveGenerator.getInstance().createMoves(gantries.get(0),j_in.getPickup().getSlot(), destination);
+            updateData(j_in.getPickup().getSlot(), destination, 1);
+        }
     }
 
     /**
@@ -667,67 +730,105 @@ public class Problem {
      */
 
     public void clearTop(Slot s, Gantry currentGantry, boolean helpFromOther){
-        //helpFromOther=false;
-        Gantry otherGantry=currentGantry.getId()==0 ? gantries.get(1):gantries.get(0);
-        Gantry nextExecutingGantry=helpFromOther ? otherGantry:currentGantry;
-        // pause other gantry?
-        if(helpFromOther) {
-            // TODO bij pause gantry wordt er geen feasibility gecontrolleerd
-            if(currentGantry.getTime()>=otherGantry.getTime()){
-                MoveGenerator.getInstance().pauseGantry(otherGantry, currentGantry.getTime() - otherGantry.getTime());
+        if(gantries.size() == 2) {
+            //helpFromOther=false;
+            Gantry otherGantry = currentGantry.getId() == 0 ? gantries.get(1) : gantries.get(0);
+
+            Gantry nextExecutingGantry = helpFromOther ? otherGantry : currentGantry;
+            // pause other gantry?
+            if (helpFromOther) {
+                // TODO bij pause gantry wordt er geen feasibility gecontrolleerd
+                if (currentGantry.getTime() >= otherGantry.getTime()) {
+                    MoveGenerator.getInstance().pauseGantry(otherGantry, currentGantry.getTime() - otherGantry.getTime());
+                }
             }
-        }
-        //Recursief naar boven gaan in de stapel, deze moeten eerst verplaatst worden
-        if(s.getParents().get(0) != null && s.getParents().get(0).getItem() != null){
+            //Recursief naar boven gaan in de stapel, deze moeten eerst verplaatst worden
+            if (s.getParents().get(0) != null && s.getParents().get(0).getItem() != null) {
 
-            clearTop(s.getParents().get(0), nextExecutingGantry, currentGantry.getTime() - otherGantry.getTime() >= 0);
+                clearTop(s.getParents().get(0), nextExecutingGantry, currentGantry.getTime() - otherGantry.getTime() >= 0);
 
-        }
-        if(s.getParents().get(1) != null && s.getParents().get(1).getItem() != null){
-            clearTop(s.getParents().get(1), nextExecutingGantry, currentGantry.getTime()-otherGantry.getTime()>=0);
-        }
-
-        //Nieuwe locatie zoeken voor item (in een zo dicht mogelijke rij)
-        Slot newLocation = null;
-        int magnitude = 1;
-        //We kiezen willekeurig een richting om in te zoeken (vooruit of achteruit);
-        int direction = r.nextInt(2) < 0.5 ? -1 : 1;
-
-        while(newLocation == null){
-            int offset = magnitude * direction;
-            //Als we in een bepaalde richting aan het einde van de opslagruimte komen:
-            if(bottomSlots.get(((int) s.getCenterY()/10) + offset) == null){
-                //Grootte resetten en richting omdraaien
-                magnitude = 1;
-                direction *= -1;
-                continue;
             }
-            //Alle sloten in de onderste rij vastnemen en beginnen zoeken voor een vrije plaats.
-            ArrayList<Slot> bottomRow = new ArrayList<>(bottomSlots.get(((int) s.getCenterY()/10) + offset).values());
-            newLocation = searchViableSlot(bottomRow, (int) s.getCenterX()/10, currentGantry.getX() < otherGantry.getX(), currentGantry.getX() > otherGantry.getX());
-            //newLocation = searchViableSlot(bottomRow, (int) s.getCenterX()/10, true, true);
-
-            if(newLocation == null){
-                System.out.println("stop");
+            if (s.getParents().get(1) != null && s.getParents().get(1).getItem() != null) {
+                clearTop(s.getParents().get(1), nextExecutingGantry, currentGantry.getTime() - otherGantry.getTime() >= 0);
             }
 
-            magnitude += 1;
-        }
+            //Nieuwe locatie zoeken voor item (in een zo dicht mogelijke rij)
+            Slot newLocation = null;
+            int magnitude = 1;
+            //We kiezen willekeurig een richting om in te zoeken (vooruit of achteruit);
+            int direction = r.nextInt(2) < 0.5 ? -1 : 1;
 
-        //Bovenstaande containers uitgraven is voltooid, nu kunnen we het gewenste item effectief verplaatsen
-        MoveGenerator.getInstance().createMoves(currentGantry, s, newLocation);
-        //Slots en hashmap updaten
-        updateData(s, newLocation, 0);
-        rowLockedTill.put(s.getCenterY()/10,currentGantry.getTime());
+            while (newLocation == null) {
+                int offset = magnitude * direction;
+                //Als we in een bepaalde richting aan het einde van de opslagruimte komen:
+                if (bottomSlots.get(((int) s.getCenterY() / 10) + offset) == null) {
+                    //Grootte resetten en richting omdraaien
+                    magnitude = 1;
+                    direction *= -1;
+                    continue;
+                }
+                //Alle sloten in de onderste rij vastnemen en beginnen zoeken voor een vrije plaats.
+                ArrayList<Slot> bottomRow = new ArrayList<>(bottomSlots.get(((int) s.getCenterY() / 10) + offset).values());
+                newLocation = searchViableSlot(bottomRow, (int) s.getCenterX() / 10, currentGantry.getX() < otherGantry.getX(), currentGantry.getX() > otherGantry.getX());
+                //newLocation = searchViableSlot(bottomRow, (int) s.getCenterX()/10, true, true);
 
+                if (newLocation == null) {
+                    System.out.println("stop");
+                }
 
-
-        // pause other gantry?
-        if(helpFromOther) {
-            // TODO bij pause gantry wordt er geen feasibility gecontrolleerd
-            if(currentGantry.getTime()>=otherGantry.getTime()){
-            MoveGenerator.getInstance().pauseGantry(otherGantry, currentGantry.getTime() - otherGantry.getTime());
+                magnitude += 1;
             }
+
+            //Bovenstaande containers uitgraven is voltooid, nu kunnen we het gewenste item effectief verplaatsen
+            MoveGenerator.getInstance().createMoves(currentGantry, s, newLocation);
+            //Slots en hashmap updaten
+            updateData(s, newLocation, 0);
+            rowLockedTill.put(s.getCenterY() / 10, currentGantry.getTime());
+
+
+            // pause other gantry?
+            if (helpFromOther) {
+                // TODO bij pause gantry wordt er geen feasibility gecontrolleerd
+                if (currentGantry.getTime() >= otherGantry.getTime()) {
+                    MoveGenerator.getInstance().pauseGantry(otherGantry, currentGantry.getTime() - otherGantry.getTime());
+                }
+            }
+        }
+        else{
+            //Recursief naar boven gaan in de stapel, deze moeten eerst verplaatst worden
+            if(s.getParents().get(0) != null && s.getParents().get(0).getItem() != null){
+                clearTop(s.getParents().get(0), currentGantry, helpFromOther);
+            }
+            if(s.getParents().get(1) != null && s.getParents().get(1).getItem() != null){
+                clearTop(s.getParents().get(1), currentGantry, helpFromOther);
+            }
+
+            //Nieuwe locatie zoeken voor item (in een zo dicht mogelijke rij)
+            Slot newLocation = null;
+            int magnitude = 1;
+            //We kiezen willekeurig een richting om in te zoeken (vooruit of achteruit);
+            int direction = Math.random() < 0.5 ? -1 : 1;
+
+            while(newLocation == null){
+                int offset = magnitude * direction;
+                //Als we in een bepaalde richting aan het einde van de opslagruimte komen:
+                if(bottomSlots.get(((int) s.getCenterY()/10) + offset) == null){
+                    //Grootte resetten en richting omdraaien
+                    magnitude = 1;
+                    direction *= -1;
+                    continue;
+                }
+                //Alle sloten in de onderste rij vastnemen en beginnen zoeken voor een vrije plaats.
+                ArrayList<Slot> bottomRow = new ArrayList<>(bottomSlots.get(((int) s.getCenterY()/10) + offset).values());
+                newLocation = searchViableSlot(bottomRow, (int) s.getCenterX()/10, true, true);
+
+                magnitude += 1;
+            }
+
+            //Item effectief verplaatsen
+            MoveGenerator.getInstance().createMoves(currentGantry, s, newLocation);
+            //Slots en hashmap updaten
+            updateData(s, newLocation, 0);
         }
     }
 
