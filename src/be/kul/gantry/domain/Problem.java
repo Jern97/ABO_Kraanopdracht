@@ -737,7 +737,6 @@ public class Problem {
             Gantry nextExecutingGantry = helpFromOther ? otherGantry : currentGantry;
             // pause other gantry?
             if (helpFromOther) {
-                // TODO bij pause gantry wordt er geen feasibility gecontrolleerd
                 if (currentGantry.getTime() >= otherGantry.getTime()) {
                     MoveGenerator.getInstance().pauseGantry(otherGantry, currentGantry.getTime() - otherGantry.getTime());
                 }
@@ -788,7 +787,6 @@ public class Problem {
 
             // pause other gantry?
             if (helpFromOther) {
-                // TODO bij pause gantry wordt er geen feasibility gecontrolleerd
                 if (currentGantry.getTime() >= otherGantry.getTime()) {
                     MoveGenerator.getInstance().pauseGantry(otherGantry, currentGantry.getTime() - otherGantry.getTime());
                 }

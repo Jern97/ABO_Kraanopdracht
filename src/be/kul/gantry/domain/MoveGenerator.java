@@ -382,4 +382,8 @@ public class MoveGenerator {
 
 
     }
+
+    public List<Move> getMovesFrom(Gantry g){
+        return g.getId()==0 ? gantry0Moves:gantry1Moves;
+    }
 }
