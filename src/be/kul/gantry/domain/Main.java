@@ -27,7 +27,7 @@ public class Main {
         OUTPUT_FILE = args[1];
         MoveListener test= MoveListener.getInstance();
         try {
-            sleep(3000);
+            sleep(0);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }

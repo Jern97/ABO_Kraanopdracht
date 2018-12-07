@@ -638,7 +638,7 @@ public class Problem {
                 }
 
                 //In deze rij wordt een vrije plaats gezocht voor het item
-                Slot destination = searchViableSlot(new ArrayList<>(bottomSlots.get(lowestRow).values()), 0);
+                Slot destination = searchViableSlot(new ArrayList<>(bottomSlots.get(lowestRow).values()), 50, true, true);
 
                 //Het item effectief verplaatsen door de moves te berekenen en de data aan te passen
                 jobToExecute.getPickup().getSlot().setItem(jobToExecute.getItem());
@@ -704,7 +704,12 @@ public class Problem {
             }
             //Alle sloten in de onderste rij vastnemen en beginnen zoeken voor een vrije plaats.
             ArrayList<Slot> bottomRow = new ArrayList<>(bottomSlots.get(((int) s.getCenterY()/10) + offset).values());
-            newLocation = searchViableSlot(bottomRow, (int) s.getCenterX()/10);
+            newLocation = searchViableSlot(bottomRow, (int) s.getCenterX()/10, currentGantry.getX() < otherGantry.getX(), currentGantry.getX() > otherGantry.getX());
+            //newLocation = searchViableSlot(bottomRow, (int) s.getCenterX()/10, true, true);
+
+            if(newLocation == null){
+                System.out.println("stop");
+            }
 
             magnitude += 1;
         }
@@ -733,7 +738,11 @@ public class Problem {
      * @return 1 vrij slot
      */
 
-    public Slot searchViableSlot(List<Slot> toCheck, int prefferedX) {
+    public Slot searchViableSlot(List<Slot> toCheck, int prefferedX, boolean searchLeft, boolean searchRight) {
+        if(!searchLeft || !searchRight){
+            System.out.println("stop");
+        }
+
 
         //hoogste niveau bereikt;
         if (toCheck.isEmpty()) {
@@ -756,8 +765,8 @@ public class Problem {
         //verder zoeken in de buurt van X;
         int offsetLeft = prefferedX-1;
         int offsetRight = prefferedX+1;
-        while(offsetLeft != -1 || offsetRight != toCheck.size() ) {
-            if (offsetLeft != -1){
+        while((offsetLeft != -1 && searchLeft) || (offsetRight != toCheck.size() && searchRight)) {
+            if (offsetLeft != -1 && searchLeft){
                 Slot left = toCheck.get(offsetLeft);
                 offsetLeft--;
                 if(left.getItem() == null) return left;
@@ -765,7 +774,7 @@ public class Problem {
                 if(left.getParents().get(1)!=null && !nextLevel.contains(left.getParents().get(1))) nextLevel.add(left.getParents().get(1));
 
             }
-            if(offsetRight != toCheck.size() ){
+            if(offsetRight != toCheck.size() && searchRight){
                 Slot right = toCheck.get(offsetRight);
                 offsetRight++;
                 if(right.getItem() == null) return right;
@@ -775,10 +784,8 @@ public class Problem {
         }
 
         //We hebben geen oplossing gevonden, dus alle parents toevoegen aan lijst en niveau hoger gaan zoeken
-        return searchViableSlot(nextLevel, 0);
+        return searchViableSlot(nextLevel, 0, true, true);
     }
-
-
 
     public void updateData(Slot from, Slot to, int mode){
         //Items in slots worden aangepast en de hoogte van de rij(en) worden aangepast;
