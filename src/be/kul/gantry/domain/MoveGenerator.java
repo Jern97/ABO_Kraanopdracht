@@ -140,7 +140,6 @@ public class MoveGenerator {
         //double offsetA = current.getX() - ricoA * current.getTime();
 
 
-        //Todo check dit
         boolean thisStartsBelowOther= otherGantry.getX()-previous.getX()>0;
         boolean collision= thisStartsBelowOther ? current.getX()>otherGantry.getX() : current.getX()<otherGantry.getX();
 
@@ -348,7 +347,6 @@ public class MoveGenerator {
 
 
     public void pauseGantry(Gantry g, double additionalTime){
-        // TODO hier moet gedodged kunnen worden a broer
         Gantry otherGantry= g.getId()==0 ? gantries.get(1) : gantries.get(0);
 
         double extremeOfOtherGantry = calculateExtreme(otherGantry, g.getTime(), g.getTime() + additionalTime);
